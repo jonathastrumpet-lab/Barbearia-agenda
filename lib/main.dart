@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 
+import 'appointment_store.dart';
 import 'appointments_page.dart';
 import 'booking_page.dart';
 import 'schedule_settings_page.dart';
 import 'team_page.dart';
 
-void main() => runApp(const BarbeariaAgendaApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await AppointmentStore.initializeCloud();
+  runApp(const BarbeariaAgendaApp());
+}
 
 class BarbeariaAgendaApp extends StatelessWidget {
   const BarbeariaAgendaApp({super.key});
