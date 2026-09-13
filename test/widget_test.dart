@@ -1,11 +1,13 @@
 import 'package:barbearia_agenda/appointment_store.dart';
 import 'package:barbearia_agenda/main.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() async {
+    SharedPreferences.setMockInitialValues({});
     await AppointmentStore.initializeCloud();
   });
 
