@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'appointment_store.dart';
+
 class BookingPage extends StatefulWidget {
   const BookingPage({super.key});
 
@@ -33,6 +35,7 @@ class _BookingPageState extends State<BookingPage> {
   int _barberIndex = 0;
   DateTime _selectedDate = DateTime.now();
   String? _selectedTime;
+  bool _saving = false;
 
   Future<void> _pickDate() async {
     final now = DateTime.now();
@@ -54,7 +57,7 @@ class _BookingPageState extends State<BookingPage> {
     }
   }
 
-  void _confirmBooking() {
+  Future<void> _confirmBooking() async {
     if (_selectedTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -65,12 +68,51 @@ class _BookingPageState extends State<BookingPage> {
       return;
     }
 
+    if (_saving) return;
+    setState(() => _saving = true);
+
     final service = _services[_serviceIndex];
     final barber = _barbers[_barberIndex];
+    final time = _selectedTime!;
+    final normalizedDate = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+    );
+    final now = DateTime.now();
+
+    final appointment = Appointment(
+      id: '${now.microsecondsSinceEpoch}',
+      service: service.name,
+      duration: service.duration,
+      price: service.price,
+      barber: barber,
+      dateIso: normalizedDate.toIso8601String(),
+      time: time,
+      createdAtIso: now.toIso8601String(),
+    );
+
+    try {
+      await AppointmentStore.add(appointment);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível salvar o agendamento.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() => _saving = false);
     final date = _formatDate(_selectedDate);
 
-    showDialog<void>(
+    await showDialog<void>(
       context: context,
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF202020),
         title: const Row(
@@ -81,15 +123,12 @@ class _BookingPageState extends State<BookingPage> {
           ],
         ),
         content: Text(
-          '${service.name}\n$barber • $date às $_selectedTime\n${service.price}',
+          '${service.name}\n$barber • $date às $time\n${service.price}',
           style: const TextStyle(height: 1.6),
         ),
         actions: [
           FilledButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              Navigator.of(context).pop();
-            },
+            onPressed: () => Navigator.of(context).pop(),
             style: FilledButton.styleFrom(
               backgroundColor: _gold,
               foregroundColor: Colors.black,
@@ -99,6 +138,8 @@ class _BookingPageState extends State<BookingPage> {
         ],
       ),
     );
+
+    if (mounted) Navigator.of(context).pop(true);
   }
 
   String _formatDate(DateTime date) {
@@ -280,7 +321,7 @@ class _BookingPageState extends State<BookingPage> {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
-                  onPressed: _confirmBooking,
+                  onPressed: _saving ? null : _confirmBooking,
                   style: FilledButton.styleFrom(
                     backgroundColor: _gold,
                     foregroundColor: Colors.black,
@@ -289,10 +330,19 @@ class _BookingPageState extends State<BookingPage> {
                       borderRadius: BorderRadius.circular(14),
                     ),
                   ),
-                  icon: const Icon(Icons.check_rounded),
-                  label: const Text(
-                    'CONFIRMAR AGENDAMENTO',
-                    style: TextStyle(fontWeight: FontWeight.w900),
+                  icon: _saving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.black,
+                          ),
+                        )
+                      : const Icon(Icons.check_rounded),
+                  label: Text(
+                    _saving ? 'SALVANDO...' : 'CONFIRMAR AGENDAMENTO',
+                    style: const TextStyle(fontWeight: FontWeight.w900),
                   ),
                 ),
               ),
@@ -373,9 +423,7 @@ class _ChoiceTile extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: selected ? gold : Colors.white12,
-            ),
+            border: Border.all(color: selected ? gold : Colors.white12),
           ),
           child: Row(
             children: [
