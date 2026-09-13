@@ -1,7 +1,7 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class Appointment {
   const Appointment({
@@ -48,9 +48,10 @@ class Appointment {
         createdAtIso: json['createdAtIso'] as String,
       );
 
-  Map<String, dynamic> toCloudJson() => {
+  Map<String, dynamic> toCloudJson(String clientId) => {
         'id': id,
         'shop_id': AppointmentStore.shopId,
+        'client_id': clientId,
         'service': service,
         'duration': duration,
         'price': price,
@@ -81,19 +82,36 @@ class AppointmentStore {
   AppointmentStore._();
 
   static const _key = 'appointments_v1';
-
-  // A sincronização fica desativada enquanto estes valores não forem
-  // fornecidos no build com --dart-define. Isso mantém o APK atual funcionando
-  // localmente e evita colocar credenciais no repositório.
   static const _supabaseUrl = String.fromEnvironment('SUPABASE_URL');
-  static const _supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
+  static const _supabasePublishableKey =
+      String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY');
   static const shopId = String.fromEnvironment(
     'BARBERSHOP_ID',
     defaultValue: 'barbearia-demo',
   );
 
-  static bool get cloudEnabled =>
-      _supabaseUrl.isNotEmpty && _supabaseAnonKey.isNotEmpty;
+  static bool _cloudReady = false;
+  static bool get cloudEnabled => _cloudReady;
+
+  static Future<void> initializeCloud() async {
+    if (_supabaseUrl.isEmpty || _supabasePublishableKey.isEmpty) return;
+
+    try {
+      await Supabase.initialize(
+        url: _supabaseUrl,
+        publishableKey: _supabasePublishableKey,
+      );
+
+      final auth = Supabase.instance.client.auth;
+      if (auth.currentSession == null) {
+        await auth.signInAnonymously();
+      }
+
+      _cloudReady = auth.currentUser != null;
+    } catch (_) {
+      _cloudReady = false;
+    }
+  }
 
   static Future<List<Appointment>> load() async {
     if (cloudEnabled) {
@@ -102,8 +120,8 @@ class AppointmentStore {
         await _save(remote);
         return remote;
       } catch (_) {
-        // Se a internet estiver indisponível, a última cópia local continua
-        // acessível. Quando a conexão voltar, a próxima leitura sincroniza.
+        // Usa a última cópia local quando a nuvem estiver temporariamente
+        // indisponível.
       }
     }
     return _loadLocal();
@@ -148,21 +166,20 @@ class AppointmentStore {
     }
   }
 
-  static Future<List<Appointment>> _loadRemote() async {
-    final uri = Uri.parse(
-      '$_supabaseUrl/rest/v1/appointments'
-      '?shop_id=eq.${Uri.encodeQueryComponent(shopId)}'
-      '&status=eq.active'
-      '&select=id,service,duration,price,barber,date_iso,time,created_at_iso'
-      '&order=date_iso.asc,time.asc',
-    );
-    final response = await _request('GET', uri);
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw HttpException('Falha ao sincronizar agenda (${response.statusCode})');
-    }
+  static SupabaseClient get _client => Supabase.instance.client;
 
-    final decoded = jsonDecode(response.body) as List<dynamic>;
-    final items = decoded
+  static Future<List<Appointment>> _loadRemote() async {
+    final rows = await _client
+        .from('appointments')
+        .select(
+          'id,service,duration,price,barber,date_iso,time,created_at_iso',
+        )
+        .eq('shop_id', shopId)
+        .eq('status', 'active')
+        .order('date_iso')
+        .order('time');
+
+    final items = (rows as List<dynamic>)
         .map((item) =>
             Appointment.fromCloudJson(item as Map<String, dynamic>))
         .toList();
@@ -171,58 +188,30 @@ class AppointmentStore {
   }
 
   static Future<void> _addRemote(Appointment appointment) async {
-    final uri = Uri.parse('$_supabaseUrl/rest/v1/appointments');
-    final response = await _request(
-      'POST',
-      uri,
-      body: jsonEncode(appointment.toCloudJson()),
-      extraHeaders: const {'Prefer': 'return=minimal'},
-    );
+    final user = _client.auth.currentUser;
+    if (user == null) throw StateError('Sessão Supabase não autenticada.');
 
-    if (response.statusCode == 409) {
-      throw const AppointmentConflictException();
-    }
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw HttpException('Falha ao salvar na nuvem (${response.statusCode})');
+    try {
+      await _client
+          .from('appointments')
+          .insert(appointment.toCloudJson(user.id));
+    } on PostgrestException catch (error) {
+      if (error.code == '23505') {
+        throw const AppointmentConflictException();
+      }
+      rethrow;
     }
   }
 
   static Future<void> _removeRemote(String id) async {
-    final uri = Uri.parse(
-      '$_supabaseUrl/rest/v1/appointments?id=eq.${Uri.encodeQueryComponent(id)}',
-    );
-    final response = await _request(
-      'DELETE',
-      uri,
-      extraHeaders: const {'Prefer': 'return=minimal'},
-    );
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw HttpException('Falha ao cancelar na nuvem (${response.statusCode})');
-    }
-  }
+    final user = _client.auth.currentUser;
+    if (user == null) throw StateError('Sessão Supabase não autenticada.');
 
-  static Future<_HttpResult> _request(
-    String method,
-    Uri uri, {
-    String? body,
-    Map<String, String> extraHeaders = const {},
-  }) async {
-    final client = HttpClient();
-    try {
-      final request = await client.openUrl(method, uri);
-      request.headers.set('apikey', _supabaseAnonKey);
-      request.headers.set('Authorization', 'Bearer $_supabaseAnonKey');
-      request.headers.set('Content-Type', 'application/json');
-      request.headers.set('Accept', 'application/json');
-      extraHeaders.forEach(request.headers.set);
-      if (body != null) request.write(body);
-
-      final response = await request.close();
-      final responseBody = await utf8.decoder.bind(response).join();
-      return _HttpResult(response.statusCode, responseBody);
-    } finally {
-      client.close(force: true);
-    }
+    await _client
+        .from('appointments')
+        .update({'status': 'cancelled'})
+        .eq('id', id)
+        .eq('client_id', user.id);
   }
 
   static Future<void> _save(List<Appointment> items) async {
@@ -245,11 +234,4 @@ class AppointmentStore {
 
     return value(a).compareTo(value(b));
   }
-}
-
-class _HttpResult {
-  const _HttpResult(this.statusCode, this.body);
-
-  final int statusCode;
-  final String body;
 }
