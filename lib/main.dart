@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'appointment_store.dart';
 import 'appointments_page.dart';
+import 'auth_gate.dart';
 import 'booking_page.dart';
 import 'schedule_settings_page.dart';
 import 'team_page.dart';
@@ -39,20 +40,32 @@ class BarbeariaAgendaApp extends StatelessWidget {
           elevation: 0,
         ),
       ),
-      home: const HomePage(),
+      home: const AuthGate(child: HomePage()),
     );
   }
 }
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
   static const _gold = Color(0xFFD7A84B);
   static const _card = Color(0xFF1D1D1D);
 
   void _open(BuildContext context, Widget page) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => page),
+    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page));
+  }
+
+  Future<void> _logout() async {
+    await AppointmentStore.signOut();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<void>(builder: (_) => const AuthGate(child: HomePage())),
+      (_) => false,
     );
   }
 
@@ -94,7 +107,7 @@ class HomePage extends StatelessWidget {
                   _HomeActionCard(
                     icon: Icons.event_available_rounded,
                     title: 'Meus agendamentos',
-                    subtitle: 'Veja seus próximos horários',
+                    subtitle: 'Veja os próximos horários da barbearia',
                     onTap: () => _open(context, const AppointmentsPage()),
                   ),
                   _HomeActionCard(
@@ -122,23 +135,17 @@ class HomePage extends StatelessWidget {
                 ),
                 child: const Row(
                   children: [
-                    Icon(Icons.schedule_rounded, color: _gold, size: 27),
+                    Icon(Icons.verified_user_rounded, color: _gold, size: 27),
                     SizedBox(width: 13),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Atendimento com hora marcada',
-                            style: TextStyle(fontWeight: FontWeight.w700),
-                          ),
+                          Text('Agenda protegida por login', style: TextStyle(fontWeight: FontWeight.w700)),
                           SizedBox(height: 4),
                           Text(
-                            'Escolha o melhor horário para você.',
-                            style: TextStyle(
-                              color: Color(0xFFAAAAAA),
-                              fontSize: 13,
-                            ),
+                            'Os dados ficam separados por estabelecimento.',
+                            style: TextStyle(color: Color(0xFFAAAAAA), fontSize: 13),
                           ),
                         ],
                       ),
@@ -155,10 +162,9 @@ class HomePage extends StatelessWidget {
 
   Widget _cloudStatusCard() {
     final ok = AppointmentStore.cloudEnabled;
-    final error = AppointmentStore.cloudError;
     final message = ok
-        ? 'Supabase conectado. Agenda na nuvem ativa.'
-        : 'Supabase offline: ${error ?? 'falha desconhecida ao iniciar a nuvem.'}';
+        ? 'Supabase conectado. Agenda protegida e vinculada a sua barbearia.'
+        : 'Supabase offline: ${AppointmentStore.cloudError ?? 'falha desconhecida.'}';
 
     return Container(
       width: double.infinity,
@@ -166,9 +172,7 @@ class HomePage extends StatelessWidget {
       decoration: BoxDecoration(
         color: ok ? const Color(0xFF13271B) : const Color(0xFF32191B),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: ok ? const Color(0xFF2E7D4B) : const Color(0xFFB74A52),
-        ),
+        border: Border.all(color: ok ? const Color(0xFF2E7D4B) : const Color(0xFFB74A52)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -195,32 +199,28 @@ class HomePage extends StatelessWidget {
   }
 
   Widget _topBar() {
-    return const Row(
+    return Row(
       children: [
-        _Logo(),
-        SizedBox(width: 12),
-        Expanded(
+        const _Logo(),
+        const SizedBox(width: 12),
+        const Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'BARBEARIA',
-                style: TextStyle(
-                  color: _gold,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 2.2,
-                ),
+                style: TextStyle(color: _gold, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 2.2),
               ),
               SizedBox(height: 2),
-              Text(
-                'Barbearia Agenda',
-                style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800),
-              ),
+              Text('Barbearia Agenda', style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800)),
             ],
           ),
         ),
-        Icon(Icons.account_circle_outlined, color: Colors.white70, size: 30),
+        IconButton(
+          tooltip: 'Sair',
+          onPressed: _logout,
+          icon: const Icon(Icons.logout_rounded, color: Colors.white70),
+        ),
       ],
     );
   }
@@ -243,27 +243,12 @@ class HomePage extends StatelessWidget {
         children: [
           const Text(
             'SEU VISUAL, SEU HORÁRIO',
-            style: TextStyle(
-              color: _gold,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.1,
-            ),
+            style: TextStyle(color: _gold, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1.1),
           ),
           const SizedBox(height: 16),
-          const Text(
-            'Hora de renovar\no visual?',
-            style: TextStyle(
-              fontSize: 30,
-              height: 1.08,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
+          const Text('Hora de renovar\no visual?', style: TextStyle(fontSize: 30, height: 1.08, fontWeight: FontWeight.w900)),
           const SizedBox(height: 10),
-          const Text(
-            'Agende seu atendimento em poucos passos.',
-            style: TextStyle(color: Color(0xFFC4C4C4), fontSize: 15),
-          ),
+          const Text('Agende seu atendimento em poucos passos.', style: TextStyle(color: Color(0xFFC4C4C4), fontSize: 15)),
           const SizedBox(height: 20),
           SizedBox(
             width: double.infinity,
@@ -275,10 +260,7 @@ class HomePage extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 15),
               ),
               icon: const Icon(Icons.calendar_month_rounded),
-              label: const Text(
-                'AGENDAR AGORA',
-                style: TextStyle(fontWeight: FontWeight.w900),
-              ),
+              label: const Text('AGENDAR AGORA', style: TextStyle(fontWeight: FontWeight.w900)),
             ),
           ),
         ],
@@ -295,10 +277,7 @@ class _Logo extends StatelessWidget {
     return Container(
       width: 48,
       height: 48,
-      decoration: BoxDecoration(
-        color: const Color(0xFFD7A84B),
-        borderRadius: BorderRadius.circular(14),
-      ),
+      decoration: BoxDecoration(color: const Color(0xFFD7A84B), borderRadius: BorderRadius.circular(14)),
       child: const Icon(Icons.content_cut_rounded, color: Colors.black, size: 28),
     );
   }
@@ -331,9 +310,7 @@ class _HomeActionCard extends StatelessWidget {
           padding: const EdgeInsets.all(17),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: highlighted ? const Color(0xFF5A4522) : Colors.white10,
-            ),
+            border: Border.all(color: highlighted ? const Color(0xFF5A4522) : Colors.white10),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -352,22 +329,14 @@ class _HomeActionCard extends StatelessWidget {
                 title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 15,
-                  height: 1.15,
-                  fontWeight: FontWeight.w800,
-                ),
+                style: const TextStyle(fontSize: 15, height: 1.15, fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 6),
               Text(
                 subtitle,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Color(0xFF9D9D9D),
-                  fontSize: 11.5,
-                  height: 1.25,
-                ),
+                style: const TextStyle(color: Color(0xFF9D9D9D), fontSize: 11.5, height: 1.25),
               ),
             ],
           ),
