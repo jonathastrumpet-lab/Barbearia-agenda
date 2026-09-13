@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'appointments_page.dart';
 import 'booking_page.dart';
 
 void main() {
@@ -47,6 +48,12 @@ class HomePage extends StatelessWidget {
   void _openBooking(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => const BookingPage()),
+    );
+  }
+
+  void _openAppointments(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const AppointmentsPage()),
     );
   }
 
@@ -102,8 +109,7 @@ class HomePage extends StatelessWidget {
                     icon: Icons.event_available_rounded,
                     title: 'Meus agendamentos',
                     subtitle: 'Veja seus próximos horários',
-                    onTap: () =>
-                        _showComingSoon(context, 'Meus agendamentos'),
+                    onTap: () => _openAppointments(context),
                   ),
                   _HomeActionCard(
                     icon: Icons.content_cut_rounded,
