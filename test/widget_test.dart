@@ -8,7 +8,7 @@ void main() {
     expect(find.text('Barbearia Agenda'), findsOneWidget);
     expect(find.text('Agendar horário'), findsOneWidget);
     expect(find.text('Meus agendamentos'), findsOneWidget);
-    expect(find.text('Serviços'), findsOneWidget);
+    expect(find.text('Horários'), findsOneWidget);
     expect(find.text('Barbeiros'), findsOneWidget);
   });
 }
