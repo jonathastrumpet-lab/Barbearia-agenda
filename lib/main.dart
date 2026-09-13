@@ -66,7 +66,9 @@ class HomePage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _topBar(),
-              const SizedBox(height: 26),
+              const SizedBox(height: 16),
+              _cloudStatusCard(),
+              const SizedBox(height: 18),
               _hero(context),
               const SizedBox(height: 28),
               const Text(
@@ -147,6 +149,47 @@ class HomePage extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _cloudStatusCard() {
+    final ok = AppointmentStore.cloudEnabled;
+    final error = AppointmentStore.cloudError;
+    final message = ok
+        ? 'Supabase conectado. Agenda na nuvem ativa.'
+        : 'Supabase offline: ${error ?? 'falha desconhecida ao iniciar a nuvem.'}';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: ok ? const Color(0xFF13271B) : const Color(0xFF32191B),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: ok ? const Color(0xFF2E7D4B) : const Color(0xFFB74A52),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            ok ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
+            color: ok ? const Color(0xFF7ED69C) : const Color(0xFFFF7B82),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: SelectableText(
+              message,
+              style: TextStyle(
+                color: ok ? const Color(0xFFB9F2CB) : const Color(0xFFFFC1C5),
+                fontSize: 12.5,
+                height: 1.35,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
