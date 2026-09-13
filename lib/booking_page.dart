@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 
 import 'appointment_store.dart';
 
@@ -12,6 +13,7 @@ class BookingPage extends StatefulWidget {
 class _BookingPageState extends State<BookingPage> {
   static const Color _gold = Color(0xFFD7A84B);
   static const Color _card = Color(0xFF1D1D1D);
+  static const Uuid _uuid = Uuid();
 
   final List<_ServiceOption> _services = const [
     _ServiceOption('Corte', '45 min', 'R\$ 45'),
@@ -82,7 +84,7 @@ class _BookingPageState extends State<BookingPage> {
     final now = DateTime.now();
 
     final appointment = Appointment(
-      id: '${now.microsecondsSinceEpoch}',
+      id: _uuid.v4(),
       service: service.name,
       duration: service.duration,
       price: service.price,
