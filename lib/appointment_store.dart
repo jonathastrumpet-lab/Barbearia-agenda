@@ -50,7 +50,7 @@ class Appointment {
 
   Map<String, dynamic> toCloudJson(String clientId) => {
         'id': id,
-        'shop_id': AppointmentStore.shopId,
+        'barbershop_id': AppointmentStore.shopId,
         'client_id': clientId,
         'service': service,
         'duration': duration,
@@ -59,7 +59,7 @@ class Appointment {
         'date_iso': dateIso,
         'time': time,
         'created_at_iso': createdAtIso,
-        'status': 'active',
+        'status': 'scheduled',
       };
 
   factory Appointment.fromCloudJson(Map<String, dynamic> json) => Appointment(
@@ -169,13 +169,17 @@ class AppointmentStore {
   static SupabaseClient get _client => Supabase.instance.client;
 
   static Future<List<Appointment>> _loadRemote() async {
+    final user = _client.auth.currentUser;
+    if (user == null) throw StateError('Sessão Supabase não autenticada.');
+
     final rows = await _client
         .from('appointments')
         .select(
           'id,service,duration,price,barber,date_iso,time,created_at_iso',
         )
-        .eq('shop_id', shopId)
-        .eq('status', 'active')
+        .eq('barbershop_id', shopId)
+        .eq('client_id', user.id)
+        .eq('status', 'scheduled')
         .order('date_iso')
         .order('time');
 
