@@ -94,12 +94,28 @@ class _BookingPageState extends State<BookingPage> {
 
     try {
       await AppointmentStore.add(appointment);
-    } catch (_) {
+    } on AppointmentConflictException {
       if (!mounted) return;
       setState(() => _saving = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Não foi possível salvar o agendamento.'),
+          content: Text(
+            'Esse horário acabou de ser reservado. Escolha outro horário.',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppointmentStore.cloudEnabled
+                ? 'Não foi possível sincronizar o agendamento com a nuvem.'
+                : 'Não foi possível salvar o agendamento.',
+          ),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -174,9 +190,11 @@ class _BookingPageState extends State<BookingPage> {
                 ),
               ),
               const SizedBox(height: 6),
-              const Text(
-                'Escolha serviço, barbeiro, dia e horário.',
-                style: TextStyle(color: Color(0xFFAAAAAA), fontSize: 14),
+              Text(
+                AppointmentStore.cloudEnabled
+                    ? 'Agenda sincronizada: escolha serviço, barbeiro, dia e horário.'
+                    : 'Escolha serviço, barbeiro, dia e horário.',
+                style: const TextStyle(color: Color(0xFFAAAAAA), fontSize: 14),
               ),
               const SizedBox(height: 26),
               _sectionTitle('1', 'Serviço'),
@@ -341,7 +359,11 @@ class _BookingPageState extends State<BookingPage> {
                         )
                       : const Icon(Icons.check_rounded),
                   label: Text(
-                    _saving ? 'SALVANDO...' : 'CONFIRMAR AGENDAMENTO',
+                    _saving
+                        ? (AppointmentStore.cloudEnabled
+                            ? 'SINCRONIZANDO...'
+                            : 'SALVANDO...')
+                        : 'CONFIRMAR AGENDAMENTO',
                     style: const TextStyle(fontWeight: FontWeight.w900),
                   ),
                 ),
