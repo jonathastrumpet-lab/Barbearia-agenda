@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -82,19 +83,37 @@ class AppointmentStore {
   AppointmentStore._();
 
   static const _key = 'appointments_v1';
-  static const _supabaseUrl = String.fromEnvironment('SUPABASE_URL');
-  static const _supabasePublishableKey =
-      String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY');
+
+  // Os valores abaixo sao publicos no app cliente e funcionam como fallback.
+  // O GitHub Actions ainda pode sobrescreve-los via --dart-define.
+  static const _supabaseUrl = String.fromEnvironment(
+    'SUPABASE_URL',
+    defaultValue: 'https://drvaacngbtnjxdeakgnn.supabase.co',
+  );
+  static const _supabasePublishableKey = String.fromEnvironment(
+    'SUPABASE_PUBLISHABLE_KEY',
+    defaultValue: 'sb_publishable_FAPJ5-5m7nnvXP18vw85yQ_QuVAjum8',
+  );
   static const shopId = String.fromEnvironment(
     'BARBERSHOP_ID',
-    defaultValue: 'barbearia-demo',
+    defaultValue: 'b77fd4c8-d303-42d0-9489-a88ae8a131c9',
   );
 
   static bool _cloudReady = false;
+  static String? _cloudError;
+
   static bool get cloudEnabled => _cloudReady;
+  static String? get cloudError => _cloudError;
 
   static Future<void> initializeCloud() async {
-    if (_supabaseUrl.isEmpty || _supabasePublishableKey.isEmpty) return;
+    _cloudReady = false;
+    _cloudError = null;
+
+    if (_supabaseUrl.isEmpty || _supabasePublishableKey.isEmpty) {
+      _cloudError = 'Configuracao do Supabase ausente no APK.';
+      debugPrint('[Supabase] $_cloudError');
+      return;
+    }
 
     try {
       await Supabase.initialize(
@@ -108,8 +127,18 @@ class AppointmentStore {
       }
 
       _cloudReady = auth.currentUser != null;
-    } catch (_) {
+      if (!_cloudReady) {
+        _cloudError = 'Supabase inicializou, mas nao criou sessao anonima.';
+      }
+
+      debugPrint(
+        '[Supabase] cloudReady=$_cloudReady user=${auth.currentUser?.id} shop=$shopId',
+      );
+    } catch (error, stackTrace) {
       _cloudReady = false;
+      _cloudError = error.toString();
+      debugPrint('[Supabase] Falha ao inicializar/autenticar: $error');
+      debugPrintStack(stackTrace: stackTrace);
     }
   }
 
@@ -119,9 +148,12 @@ class AppointmentStore {
         final remote = await _loadRemote();
         await _save(remote);
         return remote;
-      } catch (_) {
-        // Usa a última cópia local quando a nuvem estiver temporariamente
-        // indisponível.
+      } catch (error, stackTrace) {
+        _cloudError = error.toString();
+        debugPrint('[Supabase] Falha ao carregar agenda: $error');
+        debugPrintStack(stackTrace: stackTrace);
+        // Usa a ultima copia local quando a nuvem estiver temporariamente
+        // indisponivel.
       }
     }
     return _loadLocal();
@@ -129,7 +161,19 @@ class AppointmentStore {
 
   static Future<void> add(Appointment appointment) async {
     if (cloudEnabled) {
-      await _addRemote(appointment);
+      try {
+        await _addRemote(appointment);
+        _cloudError = null;
+      } catch (error, stackTrace) {
+        _cloudError = error.toString();
+        debugPrint('[Supabase] Falha ao inserir agendamento: $error');
+        debugPrintStack(stackTrace: stackTrace);
+        rethrow;
+      }
+    } else {
+      debugPrint(
+        '[Supabase] Salvando somente local. Motivo: ${_cloudError ?? 'nuvem nao inicializada'}',
+      );
     }
 
     final items = await _loadLocal();
@@ -141,7 +185,15 @@ class AppointmentStore {
 
   static Future<void> remove(String id) async {
     if (cloudEnabled) {
-      await _removeRemote(id);
+      try {
+        await _removeRemote(id);
+        _cloudError = null;
+      } catch (error, stackTrace) {
+        _cloudError = error.toString();
+        debugPrint('[Supabase] Falha ao cancelar agendamento: $error');
+        debugPrintStack(stackTrace: stackTrace);
+        rethrow;
+      }
     }
 
     final items = await _loadLocal();
@@ -170,7 +222,7 @@ class AppointmentStore {
 
   static Future<List<Appointment>> _loadRemote() async {
     final user = _client.auth.currentUser;
-    if (user == null) throw StateError('Sessão Supabase não autenticada.');
+    if (user == null) throw StateError('Sessao Supabase nao autenticada.');
 
     final rows = await _client
         .from('appointments')
@@ -193,7 +245,7 @@ class AppointmentStore {
 
   static Future<void> _addRemote(Appointment appointment) async {
     final user = _client.auth.currentUser;
-    if (user == null) throw StateError('Sessão Supabase não autenticada.');
+    if (user == null) throw StateError('Sessao Supabase nao autenticada.');
 
     try {
       await _client
@@ -209,7 +261,7 @@ class AppointmentStore {
 
   static Future<void> _removeRemote(String id) async {
     final user = _client.auth.currentUser;
-    if (user == null) throw StateError('Sessão Supabase não autenticada.');
+    if (user == null) throw StateError('Sessao Supabase nao autenticada.');
 
     await _client
         .from('appointments')
