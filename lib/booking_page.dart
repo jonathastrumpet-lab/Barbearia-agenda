@@ -167,7 +167,11 @@ class _BookingPageState extends State<BookingPage> {
                     return ChoiceChip(
                       selected: selected,
                       label: Text(_barbers[index]),
-                      avatar: const Icon(Icons.person_rounded, size: 18),
+                      avatar: Icon(
+                        Icons.person_rounded,
+                        size: 18,
+                        color: selected ? Colors.black : _gold,
+                      ),
                       onSelected: (_) => setState(() => _barberIndex = index),
                       selectedColor: _gold,
                       backgroundColor: _card,
@@ -175,7 +179,6 @@ class _BookingPageState extends State<BookingPage> {
                         color: selected ? Colors.black : Colors.white,
                         fontWeight: FontWeight.w700,
                       ),
-                      avatarColor: selected ? Colors.black : _gold,
                       side: BorderSide(
                         color: selected ? _gold : Colors.white12,
                       ),
