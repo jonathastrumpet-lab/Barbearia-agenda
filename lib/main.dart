@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'booking_page.dart';
+
 void main() {
   runApp(const BarbeariaAgendaApp());
 }
@@ -29,19 +31,6 @@ class BarbeariaAgendaApp extends StatelessWidget {
           backgroundColor: _background,
           foregroundColor: Colors.white,
           elevation: 0,
-          centerTitle: false,
-        ),
-        textTheme: const TextTheme(
-          headlineMedium: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w800,
-          ),
-          titleLarge: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w700,
-          ),
-          bodyLarge: TextStyle(color: Color(0xFFD0D0D0)),
-          bodyMedium: TextStyle(color: Color(0xFFAAAAAA)),
         ),
       ),
       home: const HomePage(),
@@ -54,6 +43,12 @@ class HomePage extends StatelessWidget {
 
   static const Color _gold = Color(0xFFD7A84B);
   static const Color _card = Color(0xFF1D1D1D);
+
+  void _openBooking(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const BookingPage()),
+    );
+  }
 
   void _showComingSoon(BuildContext context, String feature) {
     ScaffoldMessenger.of(context)
@@ -101,7 +96,7 @@ class HomePage extends StatelessWidget {
                     title: 'Agendar horário',
                     subtitle: 'Escolha serviço, barbeiro e horário',
                     highlighted: true,
-                    onTap: () => _showComingSoon(context, 'Agendar horário'),
+                    onTap: () => _openBooking(context),
                   ),
                   _HomeActionCard(
                     icon: Icons.event_available_rounded,
@@ -175,14 +170,10 @@ class HomePage extends StatelessWidget {
             ],
           ),
         ),
-        IconButton(
-          tooltip: 'Perfil',
-          onPressed: null,
-          icon: Icon(
-            Icons.account_circle_outlined,
-            color: Colors.white70,
-            size: 30,
-          ),
+        const Icon(
+          Icons.account_circle_outlined,
+          color: Colors.white70,
+          size: 30,
         ),
       ],
     );
@@ -243,7 +234,7 @@ class HomePage extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
-              onPressed: () => _showComingSoon(context, 'Agendar horário'),
+              onPressed: () => _openBooking(context),
               style: FilledButton.styleFrom(
                 backgroundColor: _gold,
                 foregroundColor: Colors.black,
