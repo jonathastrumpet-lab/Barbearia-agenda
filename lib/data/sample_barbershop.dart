@@ -53,15 +53,16 @@ const sampleBarbers = <Barber>[
   ),
 ];
 
-const sampleWorkingHours = <BarberWorkingHours>[
-  // Monday to Friday: 09:00-19:00, lunch 12:00-13:30.
-  ...[
-    'barber_carlos',
-    'barber_rafael',
-    'barber_bruno',
-  ].expand(
-    (barberId) => [
-      for (var weekday = 1; weekday <= 5; weekday++)
+final sampleWorkingHours = _buildWorkingHours();
+
+List<BarberWorkingHours> _buildWorkingHours() {
+  const barberIds = ['barber_carlos', 'barber_rafael', 'barber_bruno'];
+  final items = <BarberWorkingHours>[];
+
+  for (final barberId in barberIds) {
+    // Monday to Friday: 09:00-19:00, lunch 12:00-13:30.
+    for (var weekday = DateTime.monday; weekday <= DateTime.friday; weekday++) {
+      items.add(
         BarberWorkingHours(
           id: '${barberId}_weekday_$weekday',
           barbershopId: 'barbershop_demo',
@@ -73,23 +74,22 @@ const sampleWorkingHours = <BarberWorkingHours>[
           breakEndMinutes: 13 * 60 + 30,
           slotIntervalMinutes: 30,
         ),
-    ],
-  ),
+      );
+    }
 
-  // Saturday: 08:00-14:00, without a fixed break.
-  ...[
-    'barber_carlos',
-    'barber_rafael',
-    'barber_bruno',
-  ].map(
-    (barberId) => BarberWorkingHours(
-      id: '${barberId}_saturday',
-      barbershopId: 'barbershop_demo',
-      barberId: barberId,
-      weekday: DateTime.saturday,
-      startMinutes: 8 * 60,
-      endMinutes: 14 * 60,
-      slotIntervalMinutes: 30,
-    ),
-  ),
-];
+    // Saturday: 08:00-14:00, without a fixed break.
+    items.add(
+      BarberWorkingHours(
+        id: '${barberId}_saturday',
+        barbershopId: 'barbershop_demo',
+        barberId: barberId,
+        weekday: DateTime.saturday,
+        startMinutes: 8 * 60,
+        endMinutes: 14 * 60,
+        slotIntervalMinutes: 30,
+      ),
+    );
+  }
+
+  return items;
+}
