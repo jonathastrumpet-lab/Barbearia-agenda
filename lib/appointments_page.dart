@@ -50,7 +50,24 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     );
 
     if (confirmed != true) return;
-    await AppointmentStore.remove(appointment.id);
+
+    try {
+      await AppointmentStore.remove(appointment.id);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppointmentStore.cloudEnabled
+                ? 'Não foi possível cancelar na nuvem. Tente novamente.'
+                : 'Não foi possível cancelar o agendamento.',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     if (!mounted) return;
     setState(_reload);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -113,75 +130,82 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
             );
           }
 
-          return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-            itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final item = items[index];
-              return Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1D1D1D),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: Colors.white12),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.event_available_rounded, color: _gold),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            item.service,
+          return RefreshIndicator(
+            onRefresh: () async {
+              setState(_reload);
+              await _appointments;
+            },
+            child: ListView.separated(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+              itemCount: items.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final item = items[index];
+                return Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1D1D1D),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: Colors.white12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.event_available_rounded, color: _gold),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              item.service,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 17,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            item.price,
                             style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 17,
+                              color: _gold,
                               fontWeight: FontWeight.w900,
                             ),
                           ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        '${_formatDate(item.date)} às ${item.time}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
                         ),
-                        Text(
-                          item.price,
-                          style: const TextStyle(
-                            color: _gold,
-                            fontWeight: FontWeight.w900,
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        '${item.barber} • ${item.duration}',
+                        style: const TextStyle(color: Color(0xFFAAAAAA)),
+                      ),
+                      const SizedBox(height: 14),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () => _cancel(item),
+                          icon: const Icon(Icons.cancel_outlined),
+                          label: const Text('CANCELAR AGENDAMENTO'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.redAccent,
+                            side: const BorderSide(color: Colors.redAccent),
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      '${_formatDate(item.date)} às ${item.time}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
                       ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      '${item.barber} • ${item.duration}',
-                      style: const TextStyle(color: Color(0xFFAAAAAA)),
-                    ),
-                    const SizedBox(height: 14),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () => _cancel(item),
-                        icon: const Icon(Icons.cancel_outlined),
-                        label: const Text('CANCELAR AGENDAMENTO'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.redAccent,
-                          side: const BorderSide(color: Colors.redAccent),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
+                    ],
+                  ),
+                );
+              },
+            ),
           );
         },
       ),
