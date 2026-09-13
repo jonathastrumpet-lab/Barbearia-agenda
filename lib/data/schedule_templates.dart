@@ -1,0 +1,96 @@
+import '../models/barbershop_models.dart';
+
+class ScheduleTemplate {
+  const ScheduleTemplate({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.days,
+    this.slotIntervalMinutes = 30,
+  });
+
+  final String id;
+  final String name;
+  final String description;
+  final List<DaySchedule> days;
+  final int slotIntervalMinutes;
+
+  BarbershopSchedule createSchedule({
+    required String scheduleId,
+    required String barbershopId,
+  }) {
+    return BarbershopSchedule(
+      id: scheduleId,
+      barbershopId: barbershopId,
+      templateId: id,
+      days: [for (final day in days) day.copyWith()],
+      slotIntervalMinutes: slotIntervalMinutes,
+    );
+  }
+}
+
+const scheduleTemplates = <ScheduleTemplate>[
+  ScheduleTemplate(
+    id: 'commercial_standard',
+    name: 'Padrão comercial',
+    description: 'Segunda a sexta de 09:00 às 19:00, com intervalo de almoço, e sábado até 14:00.',
+    days: [
+      DaySchedule(weekday: 1, enabled: true, startMinutes: 540, endMinutes: 1140, breakEnabled: true, breakStartMinutes: 720, breakEndMinutes: 810),
+      DaySchedule(weekday: 2, enabled: true, startMinutes: 540, endMinutes: 1140, breakEnabled: true, breakStartMinutes: 720, breakEndMinutes: 810),
+      DaySchedule(weekday: 3, enabled: true, startMinutes: 540, endMinutes: 1140, breakEnabled: true, breakStartMinutes: 720, breakEndMinutes: 810),
+      DaySchedule(weekday: 4, enabled: true, startMinutes: 540, endMinutes: 1140, breakEnabled: true, breakStartMinutes: 720, breakEndMinutes: 810),
+      DaySchedule(weekday: 5, enabled: true, startMinutes: 540, endMinutes: 1140, breakEnabled: true, breakStartMinutes: 720, breakEndMinutes: 810),
+      DaySchedule(weekday: 6, enabled: true, startMinutes: 480, endMinutes: 840),
+      DaySchedule(weekday: 7, enabled: false),
+    ],
+  ),
+  ScheduleTemplate(
+    id: 'early_opening',
+    name: 'Abre cedo',
+    description: 'Segunda a sábado a partir de 08:00, com intervalo configurável.',
+    days: [
+      DaySchedule(weekday: 1, enabled: true, startMinutes: 480, endMinutes: 1140, breakEnabled: true, breakStartMinutes: 720, breakEndMinutes: 780),
+      DaySchedule(weekday: 2, enabled: true, startMinutes: 480, endMinutes: 1140, breakEnabled: true, breakStartMinutes: 720, breakEndMinutes: 780),
+      DaySchedule(weekday: 3, enabled: true, startMinutes: 480, endMinutes: 1140, breakEnabled: true, breakStartMinutes: 720, breakEndMinutes: 780),
+      DaySchedule(weekday: 4, enabled: true, startMinutes: 480, endMinutes: 1140, breakEnabled: true, breakStartMinutes: 720, breakEndMinutes: 780),
+      DaySchedule(weekday: 5, enabled: true, startMinutes: 480, endMinutes: 1140, breakEnabled: true, breakStartMinutes: 720, breakEndMinutes: 780),
+      DaySchedule(weekday: 6, enabled: true, startMinutes: 480, endMinutes: 960),
+      DaySchedule(weekday: 7, enabled: false),
+    ],
+  ),
+  ScheduleTemplate(
+    id: 'no_break',
+    name: 'Sem intervalo',
+    description: 'Segunda a sábado com atendimento contínuo, sem parada fixa para almoço.',
+    days: [
+      DaySchedule(weekday: 1, enabled: true, startMinutes: 540, endMinutes: 1140),
+      DaySchedule(weekday: 2, enabled: true, startMinutes: 540, endMinutes: 1140),
+      DaySchedule(weekday: 3, enabled: true, startMinutes: 540, endMinutes: 1140),
+      DaySchedule(weekday: 4, enabled: true, startMinutes: 540, endMinutes: 1140),
+      DaySchedule(weekday: 5, enabled: true, startMinutes: 540, endMinutes: 1140),
+      DaySchedule(weekday: 6, enabled: true, startMinutes: 480, endMinutes: 960),
+      DaySchedule(weekday: 7, enabled: false),
+    ],
+  ),
+  ScheduleTemplate(
+    id: 'custom',
+    name: 'Personalizado',
+    description: 'Começa sem horários definidos para a barbearia configurar tudo do zero.',
+    days: [
+      DaySchedule(weekday: 1, enabled: false),
+      DaySchedule(weekday: 2, enabled: false),
+      DaySchedule(weekday: 3, enabled: false),
+      DaySchedule(weekday: 4, enabled: false),
+      DaySchedule(weekday: 5, enabled: false),
+      DaySchedule(weekday: 6, enabled: false),
+      DaySchedule(weekday: 7, enabled: false),
+    ],
+  ),
+];
+
+ScheduleTemplate scheduleTemplateById(String id) {
+  return scheduleTemplates.firstWhere(
+    (template) => template.id == id,
+    orElse: () => scheduleTemplates.last,
+  );
+}
