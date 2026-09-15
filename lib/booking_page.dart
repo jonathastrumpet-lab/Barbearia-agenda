@@ -38,6 +38,70 @@ class _BookingPageState extends State<BookingPage> {
   DateTime _selectedDate = DateTime.now();
   String? _selectedTime;
   bool _saving = false;
+  bool _loadingAvailability = true;
+  Set<String> _occupiedTimes = <String>{};
+  int _availabilityRequest = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshAvailability();
+  }
+
+  String _selectedDateIso() {
+    return DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+    ).toIso8601String();
+  }
+
+  Future<void> _refreshAvailability() async {
+    final request = ++_availabilityRequest;
+    if (mounted) {
+      setState(() => _loadingAvailability = true);
+    }
+
+    final shop = AppointmentStore.shopId;
+    if (!AppointmentStore.cloudEnabled || shop == null) {
+      if (!mounted || request != _availabilityRequest) return;
+      setState(() {
+        _occupiedTimes = <String>{};
+        _loadingAvailability = false;
+      });
+      return;
+    }
+
+    try {
+      final rows = await AppointmentStore.client
+          .from('appointments')
+          .select('time')
+          .eq('barbershop_id', shop)
+          .eq('barber', _barbers[_barberIndex])
+          .eq('date_iso', _selectedDateIso())
+          .eq('status', 'scheduled');
+
+      final occupied = (rows as List<dynamic>)
+          .map((row) => (row as Map<String, dynamic>)['time']?.toString())
+          .whereType<String>()
+          .toSet();
+
+      if (!mounted || request != _availabilityRequest) return;
+      setState(() {
+        _occupiedTimes = occupied;
+        if (_selectedTime != null && occupied.contains(_selectedTime)) {
+          _selectedTime = null;
+        }
+        _loadingAvailability = false;
+      });
+    } catch (_) {
+      if (!mounted || request != _availabilityRequest) return;
+      setState(() {
+        _occupiedTimes = <String>{};
+        _loadingAvailability = false;
+      });
+    }
+  }
 
   Future<void> _pickDate() async {
     final now = DateTime.now();
@@ -56,6 +120,7 @@ class _BookingPageState extends State<BookingPage> {
         _selectedDate = picked;
         _selectedTime = null;
       });
+      await _refreshAvailability();
     }
   }
 
@@ -99,6 +164,8 @@ class _BookingPageState extends State<BookingPage> {
     } on AppointmentConflictException {
       if (!mounted) return;
       setState(() => _saving = false);
+      await _refreshAvailability();
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -233,7 +300,13 @@ class _BookingPageState extends State<BookingPage> {
                         size: 18,
                         color: selected ? Colors.black : _gold,
                       ),
-                      onSelected: (_) => setState(() => _barberIndex = index),
+                      onSelected: (_) {
+                        setState(() {
+                          _barberIndex = index;
+                          _selectedTime = null;
+                        });
+                        _refreshAvailability();
+                      },
                       selectedColor: _gold,
                       backgroundColor: _card,
                       labelStyle: TextStyle(
@@ -279,25 +352,52 @@ class _BookingPageState extends State<BookingPage> {
                 ),
               ),
               const SizedBox(height: 28),
-              _sectionTitle('4', 'Horário'),
+              Row(
+                children: [
+                  Expanded(child: _sectionTitle('4', 'Horário')),
+                  if (_loadingAvailability)
+                    const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                ],
+              ),
               const SizedBox(height: 12),
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
                 children: _times.map((time) {
                   final selected = _selectedTime == time;
+                  final occupied = _occupiedTimes.contains(time);
+                  final disabled = occupied || _loadingAvailability;
                   return ChoiceChip(
                     selected: selected,
-                    label: Text(time),
-                    onSelected: (_) => setState(() => _selectedTime = time),
+                    label: Text(occupied ? '$time • Reservado' : time),
+                    onSelected: disabled
+                        ? null
+                        : (_) => setState(() => _selectedTime = time),
                     selectedColor: _gold,
                     backgroundColor: _card,
+                    disabledColor: occupied
+                        ? Colors.redAccent.withValues(alpha: 0.12)
+                        : Colors.white10,
                     labelStyle: TextStyle(
-                      color: selected ? Colors.black : Colors.white,
+                      color: occupied
+                          ? Colors.redAccent
+                          : selected
+                              ? Colors.black
+                              : disabled
+                                  ? Colors.white38
+                                  : Colors.white,
                       fontWeight: FontWeight.w800,
                     ),
                     side: BorderSide(
-                      color: selected ? _gold : Colors.white12,
+                      color: occupied
+                          ? Colors.redAccent.withValues(alpha: 0.65)
+                          : selected
+                              ? _gold
+                              : Colors.white12,
                     ),
                   );
                 }).toList(),
