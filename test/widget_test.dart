@@ -19,6 +19,6 @@ void main() {
     expect(find.text('E-mail'), findsOneWidget);
     expect(find.text('Senha'), findsOneWidget);
     expect(find.text('ENTRAR'), findsOneWidget);
-    expect(find.text('Criar conta da barbearia'), findsOneWidget);
+    expect(find.text('Criar nova conta'), findsOneWidget);
   });
 }
