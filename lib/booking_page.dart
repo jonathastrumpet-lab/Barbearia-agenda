@@ -1,1 +1,1 @@
-export 'booking_page_dynamic.dart';
+export 'booking_page_catalog.dart';
