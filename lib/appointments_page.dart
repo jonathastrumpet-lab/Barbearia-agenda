@@ -87,9 +87,9 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
   }
 
   String _cancellationOrigin(Appointment appointment) {
-    if (appointment.cancelledBy == 'client') return 'Cancelado pelo cliente';
-    if (appointment.cancelledBy == 'admin') return 'Cancelado pelo dono/admin';
-    return 'Cancelado';
+    if (appointment.cancelledBy == 'client') return 'Cancelado pelo CLIENTE';
+    if (appointment.cancelledBy == 'admin') return 'Cancelado pelo DONO/ADMIN';
+    return 'Origem do cancelamento não registrada';
   }
 
   @override
@@ -223,10 +223,13 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                                   fontWeight: FontWeight.w900,
                                 ),
                               ),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 6),
                               Text(
                                 _cancellationOrigin(item),
-                                style: const TextStyle(color: Colors.white70),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                ),
                               ),
                             ],
                           ),
