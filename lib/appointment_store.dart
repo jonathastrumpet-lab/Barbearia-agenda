@@ -23,14 +23,15 @@ class AppointmentConflictException implements Exception { const AppointmentConfl
 class AppointmentStore {
   AppointmentStore._();
   static const _key='appointments_v1';
-  static const _clientShopKey='client_shop_id_v1';
+  static const _clientShopKey='client_shop_id_v2';
   static const _supabaseUrl=String.fromEnvironment('SUPABASE_URL',defaultValue:'https://drvaacngbtnjxdeakgnn.supabase.co');
   static const _supabasePublishableKey=String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY',defaultValue:'sb_publishable_FAPJ5-5m7nnvXP18vw85yQ_QuVAjum8');
   static bool _cloudReady=false;
-  static String? _cloudError,_shopId,_memberRole;
+  static String? _cloudError,_shopId,_shopName,_memberRole;
   static bool get cloudEnabled=>_cloudReady;
   static String? get cloudError=>_cloudError;
   static String? get shopId=>_shopId;
+  static String? get shopName=>_shopName;
   static String? get memberRole=>_memberRole;
   static bool get isAdmin=>_memberRole=='owner'||_memberRole=='admin'||_memberRole=='manager';
   static bool get isClient=>signedIn&&!isAdmin;
@@ -38,9 +39,10 @@ class AppointmentStore {
   static User? get currentUser=>client.auth.currentUser;
   static bool get signedIn=>currentUser!=null&&currentUser!.isAnonymous!=true;
   static bool get hasShop=>_shopId!=null;
+  static String _clientShopKeyFor(User user)=>'${_clientShopKey}_${user.id}';
 
   static Future<void> initializeCloud() async {
-    _cloudReady=false; _cloudError=null; _shopId=null; _memberRole=null;
+    _cloudReady=false; _cloudError=null; _shopId=null; _shopName=null; _memberRole=null;
     if(_supabaseUrl.isEmpty||_supabasePublishableKey.isEmpty){_cloudError='Configuracao do Supabase ausente no APK.';return;}
     try{
       await Supabase.initialize(url:_supabaseUrl,publishableKey:_supabasePublishableKey);
@@ -51,19 +53,37 @@ class AppointmentStore {
 
   static Future<void> signIn(String email,String password) async { _cloudReady=false;_cloudError=null;await client.auth.signInWithPassword(email:email.trim(),password:password);await refreshMembership(); }
   static Future<bool> signUp(String email,String password) async { _cloudReady=false;_cloudError=null;final r=await client.auth.signUp(email:email.trim(),password:password);if(r.session!=null){await refreshMembership();return true;}_cloudError='Confirme seu e-mail e depois faca login.';return false; }
-  static Future<void> signOut() async { await client.auth.signOut();_cloudReady=false;_shopId=null;_memberRole=null;_cloudError='Entre com sua conta.'; }
+  static Future<void> signOut() async { await client.auth.signOut();_cloudReady=false;_shopId=null;_shopName=null;_memberRole=null;_cloudError='Entre com sua conta.'; }
 
   static Future<void> refreshMembership() async {
-    final user=client.auth.currentUser; _cloudReady=false;_shopId=null;_memberRole=null;
+    final user=client.auth.currentUser; _cloudReady=false;_shopId=null;_shopName=null;_memberRole=null;
     if(user==null||user.isAnonymous==true){_cloudError='Login permanente necessario.';return;}
     final rows=await client.from('barbershop_members').select('barbershop_id,role').eq('user_id',user.id).limit(1);
     final list=rows as List<dynamic>;
-    if(list.isNotEmpty){final row=list.first as Map<String,dynamic>;_shopId=row['barbershop_id'] as String;_memberRole=row['role'] as String?;_cloudReady=true;_cloudError=null;return;}
+    if(list.isNotEmpty){
+      final row=list.first as Map<String,dynamic>;
+      _shopId=row['barbershop_id'] as String;
+      _memberRole=row['role'] as String?;
+      final shops=await client.from('barbershops').select('name').eq('id',_shopId!).limit(1);
+      final shopList=shops as List<dynamic>;
+      if(shopList.isNotEmpty)_shopName=(shopList.first as Map<String,dynamic>)['name']?.toString();
+      _cloudReady=true;_cloudError=null;return;
+    }
     final metadata=user.userMetadata??const <String,dynamic>{};
     if(metadata['account_type']=='barbershop_admin'){_cloudError='Conta da barbearia ainda nao configurada.';return;}
     final prefs=await SharedPreferences.getInstance();
-    final saved=prefs.getString(_clientShopKey);
-    if(saved!=null&&saved.isNotEmpty){_shopId=saved;_memberRole=null;_cloudReady=true;_cloudError=null;return;}
+    final saved=prefs.getString(_clientShopKeyFor(user));
+    if(saved!=null&&saved.isNotEmpty){
+      final shops=await client.from('barbershops').select('id,name').eq('id',saved).eq('active',true).limit(1);
+      final shopList=shops as List<dynamic>;
+      if(shopList.isNotEmpty){
+        final shop=shopList.first as Map<String,dynamic>;
+        _shopId=shop['id']?.toString();
+        _shopName=shop['name']?.toString();
+        _memberRole=null;_cloudReady=true;_cloudError=null;return;
+      }
+      await prefs.remove(_clientShopKeyFor(user));
+    }
     _cloudError='Escolha uma barbearia para continuar.';
   }
 
@@ -74,14 +94,22 @@ class AppointmentStore {
   }
 
   static Future<void> selectClientShop(String id) async {
-    if(!signedIn) throw StateError('Faca login primeiro.');
-    final rows=await client.from('barbershops').select('id').eq('id',id).eq('active',true).limit(1);
-    if((rows as List).isEmpty) throw StateError('Barbearia indisponivel.');
-    final prefs=await SharedPreferences.getInstance();await prefs.setString(_clientShopKey,id);
-    _shopId=id;_memberRole=null;_cloudReady=true;_cloudError=null;
+    final user=currentUser;
+    if(user==null||user.isAnonymous==true) throw StateError('Faca login primeiro.');
+    final rows=await client.from('barbershops').select('id,name').eq('id',id).eq('active',true).limit(1);
+    final list=rows as List<dynamic>;
+    if(list.isEmpty) throw StateError('Barbearia indisponivel.');
+    final shop=list.first as Map<String,dynamic>;
+    final prefs=await SharedPreferences.getInstance();
+    await prefs.setString(_clientShopKeyFor(user),id);
+    _shopId=id;_shopName=shop['name']?.toString();_memberRole=null;_cloudReady=true;_cloudError=null;
   }
 
-  static Future<void> clearClientShop() async { final prefs=await SharedPreferences.getInstance();await prefs.remove(_clientShopKey);_shopId=null;_cloudReady=false; }
+  static Future<void> clearClientShop() async {
+    final user=currentUser;
+    if(user!=null){final prefs=await SharedPreferences.getInstance();await prefs.remove(_clientShopKeyFor(user));}
+    _shopId=null;_shopName=null;_cloudReady=false;_cloudError='Escolha uma barbearia para continuar.';
+  }
   static Future<void> claimOwnerAccess(String inviteCode) async {if(!signedIn)throw StateError('Faca login primeiro.');await client.rpc('claim_barbershop_owner',params:{'invite_code':inviteCode.trim()});await refreshMembership();}
 
   static Future<List<Appointment>> load() async {if(cloudEnabled){try{final r=await _loadRemote();await _save(r);return r;}catch(e,s){_cloudError=e.toString();debugPrint('[Supabase] Falha ao carregar agenda: $e');debugPrintStack(stackTrace:s);}}return _loadLocal();}
