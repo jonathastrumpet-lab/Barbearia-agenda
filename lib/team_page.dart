@@ -1,70 +1,303 @@
 import 'package:flutter/material.dart';
 
-class TeamPage extends StatelessWidget {
+import 'barber_store.dart';
+
+class TeamPage extends StatefulWidget {
   const TeamPage({super.key});
 
-  static const _gold = Color(0xFFD7A84B);
-
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Barbeiros')),
-        body: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            const Text('Equipe', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900)),
-            const SizedBox(height: 8),
-            const Text('As fotos poderão ser escolhidas pela Galeria ou Câmera e salvas na nuvem.', style: TextStyle(color: Colors.white60, fontSize: 15)),
-            const SizedBox(height: 22),
-            for (final name in const ['Carlos', 'Rafael', 'Bruno']) ...[
-              _BarberCard(name: name),
-              const SizedBox(height: 14),
-            ],
-          ],
-        ),
-      );
+  State<TeamPage> createState() => _TeamPageState();
 }
 
-class _BarberCard extends StatelessWidget {
-  const _BarberCard({required this.name});
-  final String name;
+class _TeamPageState extends State<TeamPage> {
+  static const _gold = Color(0xFFD7A84B);
+
+  bool _loading = true;
+  bool _saving = false;
+  List<BarberRecord> _barbers = const [];
 
   @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: const Color(0xFF1D1D1D), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white10)),
-        child: Row(children: [
-          const CircleAvatar(radius: 31, backgroundColor: Color(0xFF2B2418), child: Icon(Icons.person_rounded, color: TeamPage._gold, size: 34)),
-          const SizedBox(width: 16),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(name, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)), const SizedBox(height: 4), const Text('Barbeiro', style: TextStyle(color: Colors.white54))])),
-          IconButton.filledTonal(
-            tooltip: 'Trocar foto',
-            onPressed: () => _showPhotoOptions(context, name),
-            icon: const Icon(Icons.photo_camera_outlined),
-          ),
-        ]),
-      );
+  void initState() {
+    super.initState();
+    _load();
+  }
 
-  void _showPhotoOptions(BuildContext context, String name) {
-    showModalBottomSheet<void>(
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final barbers = await BarberStore.loadAll();
+      if (!mounted) return;
+      setState(() {
+        _barbers = barbers;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      _showError('Não foi possível carregar os barbeiros.');
+    }
+  }
+
+  Future<String?> _askName({String? initialValue}) async {
+    final controller = TextEditingController(text: initialValue ?? '');
+    final result = await showDialog<String>(
       context: context,
-      showDragHandle: true,
-      builder: (sheetContext) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Trocar foto de $name', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 14),
-            ListTile(leading: const Icon(Icons.photo_library_outlined), title: const Text('Galeria'), onTap: () => _comingSoon(sheetContext)),
-            ListTile(leading: const Icon(Icons.photo_camera_outlined), title: const Text('Câmera'), onTap: () => _comingSoon(sheetContext)),
-            ListTile(leading: const Icon(Icons.close), title: const Text('Cancelar'), onTap: () => Navigator.pop(sheetContext)),
-          ]),
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF202020),
+        title: Text(initialValue == null ? 'Cadastrar barbeiro' : 'Editar barbeiro'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          decoration: const InputDecoration(
+            labelText: 'Nome do barbeiro',
+            hintText: 'Ex.: João',
+          ),
+          onSubmitted: (value) => Navigator.pop(context, value.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            style: FilledButton.styleFrom(
+              backgroundColor: _gold,
+              foregroundColor: Colors.black,
+            ),
+            child: const Text('Salvar'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    final clean = result?.trim();
+    return clean == null || clean.isEmpty ? null : clean;
+  }
+
+  Future<void> _addBarber() async {
+    if (_saving) return;
+    final name = await _askName();
+    if (name == null) return;
+
+    setState(() => _saving = true);
+    try {
+      await BarberStore.add(name);
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$name cadastrado com sucesso.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      _showError('Não foi possível cadastrar o barbeiro.');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _renameBarber(BarberRecord barber) async {
+    if (_saving) return;
+    final name = await _askName(initialValue: barber.name);
+    if (name == null || name == barber.name) return;
+
+    setState(() => _saving = true);
+    try {
+      await BarberStore.rename(barber.id, name);
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nome atualizado com sucesso.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      _showError('Não foi possível editar o barbeiro.');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _setActive(BarberRecord barber, bool active) async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      await BarberStore.setActive(barber.id, active);
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            active
+                ? '${barber.name} reativado.'
+                : '${barber.name} desativado para novos agendamentos.',
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      _showError('Não foi possível alterar o status do barbeiro.');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Barbeiros')),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _saving ? null : _addBarber,
+        backgroundColor: _gold,
+        foregroundColor: Colors.black,
+        icon: const Icon(Icons.person_add_alt_1_rounded),
+        label: const Text(
+          'NOVO BARBEIRO',
+          style: TextStyle(fontWeight: FontWeight.w900),
+        ),
+      ),
+      body: RefreshIndicator(
+        onRefresh: _load,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
+          children: [
+            const Text(
+              'Equipe',
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Cadastre, renomeie e escolha quais barbeiros ficam disponíveis para novos agendamentos.',
+              style: TextStyle(color: Colors.white60, fontSize: 15),
+            ),
+            const SizedBox(height: 22),
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.only(top: 48),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_barbers.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(22),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1D1D1D),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white10),
+                ),
+                child: const Column(
+                  children: [
+                    Icon(Icons.groups_2_outlined, size: 44, color: Colors.white38),
+                    SizedBox(height: 12),
+                    Text(
+                      'Nenhum barbeiro cadastrado',
+                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+                    ),
+                    SizedBox(height: 6),
+                    Text(
+                      'Use “Novo barbeiro” para cadastrar o primeiro profissional.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white54),
+                    ),
+                  ],
+                ),
+              )
+            else
+              for (final barber in _barbers) ...[
+                _BarberCard(
+                  barber: barber,
+                  disabled: _saving,
+                  onEdit: () => _renameBarber(barber),
+                  onActiveChanged: (value) => _setActive(barber, value),
+                ),
+                const SizedBox(height: 14),
+              ],
+          ],
         ),
       ),
     );
   }
+}
 
-  void _comingSoon(BuildContext context) {
-    Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Seleção e envio da foto serão ativados ao conectar o armazenamento na nuvem.')));
+class _BarberCard extends StatelessWidget {
+  const _BarberCard({
+    required this.barber,
+    required this.disabled,
+    required this.onEdit,
+    required this.onActiveChanged,
+  });
+
+  final BarberRecord barber;
+  final bool disabled;
+  final VoidCallback onEdit;
+  final ValueChanged<bool> onActiveChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1D1D1D),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: barber.active ? Colors.white10 : Colors.redAccent.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 29,
+            backgroundColor: barber.active
+                ? const Color(0xFF2B2418)
+                : Colors.white10,
+            child: Icon(
+              Icons.person_rounded,
+              color: barber.active ? _TeamPageState._gold : Colors.white38,
+              size: 32,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  barber.name,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: barber.active ? Colors.white : Colors.white54,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  barber.active ? 'Ativo para agendamentos' : 'Desativado',
+                  style: TextStyle(
+                    color: barber.active ? Colors.greenAccent : Colors.redAccent,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'Editar nome',
+            onPressed: disabled ? null : onEdit,
+            icon: const Icon(Icons.edit_outlined),
+          ),
+          Switch(
+            value: barber.active,
+            onChanged: disabled ? null : onActiveChanged,
+            activeTrackColor: _TeamPageState._gold,
+          ),
+        ],
+      ),
+    );
   }
 }
