@@ -24,6 +24,8 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
   }
 
   Future<void> _cancel(Appointment appointment) async {
+    if (appointment.isCancelled) return;
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -84,6 +86,12 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     return '$day/$month/${date.year}';
   }
 
+  String _cancellationOrigin(Appointment appointment) {
+    if (appointment.cancelledBy == 'client') return 'Cancelado pelo cliente';
+    if (appointment.cancelledBy == 'admin') return 'Cancelado pelo dono/admin';
+    return 'Cancelado';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -142,34 +150,41 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
               separatorBuilder: (_, __) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
                 final item = items[index];
+                final cancelled = item.isCancelled;
                 return Container(
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
                     color: const Color(0xFF1D1D1D),
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: Colors.white12),
+                    border: Border.all(
+                      color: cancelled ? Colors.redAccent.withValues(alpha: 0.45) : Colors.white12,
+                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.event_available_rounded, color: _gold),
+                          Icon(
+                            cancelled ? Icons.event_busy_rounded : Icons.event_available_rounded,
+                            color: cancelled ? Colors.redAccent : _gold,
+                          ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
                               item.service,
-                              style: const TextStyle(
-                                color: Colors.white,
+                              style: TextStyle(
+                                color: cancelled ? Colors.white70 : Colors.white,
                                 fontSize: 17,
                                 fontWeight: FontWeight.w900,
+                                decoration: cancelled ? TextDecoration.lineThrough : null,
                               ),
                             ),
                           ),
                           Text(
                             item.price,
-                            style: const TextStyle(
-                              color: _gold,
+                            style: TextStyle(
+                              color: cancelled ? Colors.white54 : _gold,
                               fontWeight: FontWeight.w900,
                             ),
                           ),
@@ -178,8 +193,8 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                       const SizedBox(height: 12),
                       Text(
                         '${_formatDate(item.date)} às ${item.time}',
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: cancelled ? Colors.white60 : Colors.white,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -189,18 +204,46 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                         style: const TextStyle(color: Color(0xFFAAAAAA)),
                       ),
                       const SizedBox(height: 14),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: () => _cancel(item),
-                          icon: const Icon(Icons.cancel_outlined),
-                          label: const Text('CANCELAR AGENDAMENTO'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.redAccent,
-                            side: const BorderSide(color: Colors.redAccent),
+                      if (cancelled)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent.withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.redAccent.withValues(alpha: 0.35)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'CANCELADO',
+                                style: TextStyle(
+                                  color: Colors.redAccent,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _cancellationOrigin(item),
+                                style: const TextStyle(color: Colors.white70),
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () => _cancel(item),
+                            icon: const Icon(Icons.cancel_outlined),
+                            label: const Text('CANCELAR AGENDAMENTO'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.redAccent,
+                              side: const BorderSide(color: Colors.redAccent),
+                            ),
                           ),
                         ),
-                      ),
                     ],
                   ),
                 );
