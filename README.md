@@ -1,6 +1,6 @@
-# Barbearia Agenda
+# Agenda Hub
 
-Aplicativo Flutter para gerenciamento de agenda de uma barbearia.
+Aplicativo Flutter para gerenciamento de agendas de estabelecimentos e profissionais.
 
 ## Estrutura inicial
 
@@ -30,4 +30,4 @@ flutter test
 
 ## Próximos passos
 
-A estrutura foi preparada para receber as telas de clientes, barbeiros, serviços e agendamentos, além da configuração Android para geração de APK.
+A estrutura foi preparada para receber as telas de clientes, profissionais, serviços e agendamentos, além da configuração Android para geração de APK.
