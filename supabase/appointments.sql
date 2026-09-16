@@ -1,4 +1,4 @@
--- Barbearia Agenda - agenda compartilhada no Supabase
+-- Agenda Hub - agenda compartilhada no Supabase
 -- Execute este arquivo no SQL Editor do projeto Supabase.
 
 create table if not exists public.appointments (
@@ -16,7 +16,7 @@ create table if not exists public.appointments (
     check (status in ('active', 'cancelled'))
 );
 
--- Um barbeiro não pode ter dois atendimentos ativos no mesmo horário.
+-- Um profissional não pode ter dois atendimentos ativos no mesmo horário.
 create unique index if not exists appointments_active_slot_unique
   on public.appointments (shop_id, barber, date_iso, time)
   where status = 'active';
