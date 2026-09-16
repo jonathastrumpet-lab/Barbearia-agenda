@@ -1,5 +1,5 @@
 name: barbearia_agenda
-description: Aplicativo Flutter para gerenciamento de agenda de uma barbearia.
+description: Aplicativo Flutter Agenda Hub para gerenciamento de agendas de estabelecimentos e profissionais.
 publish_to: "none"
 version: 0.1.0+1
 
