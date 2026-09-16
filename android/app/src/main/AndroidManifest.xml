@@ -2,7 +2,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
-        android:label="Barbearia Agenda"
+        android:label="Agenda Hub"
         android:name="${applicationName}"
         android:icon="@android:drawable/sym_def_app_icon">
         <activity
