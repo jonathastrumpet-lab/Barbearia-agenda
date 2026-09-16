@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'appointment_store.dart';
 import 'data/sample_barbershop.dart';
 import 'data/schedule_templates.dart';
 import 'models/barbershop_models.dart';
@@ -18,16 +19,121 @@ class _ScheduleSettingsPageState extends State<ScheduleSettingsPage> {
   late ScheduleTemplate _template;
   late List<DaySchedule> _days;
   final Map<String, bool> _barberCustom = {};
+  bool _loading = true;
+  bool _saving = false;
 
   @override
   void initState() {
     super.initState();
     _applyTemplate(scheduleTemplates.first);
+    _loadHours();
   }
 
   void _applyTemplate(ScheduleTemplate template) {
     _template = template;
     _days = [for (final day in template.days) day.copyWith()];
+  }
+
+  Future<void> _loadHours() async {
+    final shop = AppointmentStore.shopId;
+    if (shop == null) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
+    try {
+      final rows = await AppointmentStore.client
+          .from('barbershop_business_hours')
+          .select('weekday,enabled,start_minutes,end_minutes,break_enabled,break_start_minutes,break_end_minutes')
+          .eq('barbershop_id', shop)
+          .order('weekday');
+      final list = rows as List<dynamic>;
+      if (list.isNotEmpty) {
+        final byWeekday = <int, Map<String, dynamic>>{
+          for (final item in list)
+            (item as Map<String, dynamic>)['weekday'] as int: item,
+        };
+        final loaded = <DaySchedule>[];
+        for (final fallback in _days) {
+          final row = byWeekday[fallback.weekday];
+          if (row == null) {
+            loaded.add(fallback);
+            continue;
+          }
+          loaded.add(DaySchedule(
+            weekday: fallback.weekday,
+            enabled: row['enabled'] as bool? ?? false,
+            startMinutes: row['start_minutes'] as int?,
+            endMinutes: row['end_minutes'] as int?,
+            breakEnabled: row['break_enabled'] as bool? ?? false,
+            breakStartMinutes: row['break_start_minutes'] as int?,
+            breakEndMinutes: row['break_end_minutes'] as int?,
+          ));
+        }
+        if (mounted) setState(() => _days = loaded);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Não foi possível carregar os horários: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _saveHours() async {
+    if (_saving) return;
+    final shop = AppointmentStore.shopId;
+    if (shop == null || !AppointmentStore.isAdmin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Somente o DONO/ADMIN do estabelecimento pode salvar horários.')),
+      );
+      return;
+    }
+    for (final day in _days) {
+      if (day.enabled && (day.startMinutes == null || day.endMinutes == null || day.startMinutes! >= day.endMinutes!)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${_dayName(day.weekday)}: horário de abertura deve ser anterior ao fechamento.')),
+        );
+        return;
+      }
+      if (day.breakEnabled && (day.breakStartMinutes == null || day.breakEndMinutes == null || day.breakStartMinutes! >= day.breakEndMinutes!)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${_dayName(day.weekday)}: intervalo inválido.')),
+        );
+        return;
+      }
+    }
+    setState(() => _saving = true);
+    try {
+      final now = DateTime.now().toUtc().toIso8601String();
+      final payload = _days.map((day) => <String, dynamic>{
+        'barbershop_id': shop,
+        'weekday': day.weekday,
+        'enabled': day.enabled,
+        'start_minutes': day.startMinutes,
+        'end_minutes': day.endMinutes,
+        'break_enabled': day.breakEnabled,
+        'break_start_minutes': day.breakStartMinutes,
+        'break_end_minutes': day.breakEndMinutes,
+        'updated_at': now,
+      }).toList();
+      await AppointmentStore.client
+          .from('barbershop_business_hours')
+          .upsert(payload, onConflict: 'barbershop_id,weekday');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Horários salvos com sucesso.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao salvar horários: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   String _dayName(int weekday) => const {1:'Segunda',2:'Terça',3:'Quarta',4:'Quinta',5:'Sexta',6:'Sábado',7:'Domingo'}[weekday]!;
@@ -37,12 +143,12 @@ class _ScheduleSettingsPageState extends State<ScheduleSettingsPage> {
   void _replaceDay(int index,DaySchedule value){setState(()=>_days[index]=value);}
   Future<void> _editTime(int index,String field) async {final day=_days[index];int initial;switch(field){case 'start':initial=day.startMinutes??540;case 'end':initial=day.endMinutes??1140;case 'breakStart':initial=day.breakStartMinutes??720;default:initial=day.breakEndMinutes??780;}final value=await _pickMinutes(initial);if(value==null)return;DaySchedule updated;switch(field){case 'start':updated=day.copyWith(startMinutes:value);case 'end':updated=day.copyWith(endMinutes:value);case 'breakStart':updated=day.copyWith(breakStartMinutes:value);default:updated=day.copyWith(breakEndMinutes:value);}_replaceDay(index,updated);}
 
-  @override Widget build(BuildContext context){return Scaffold(appBar:AppBar(title:const Text('Horários do estabelecimento',style:TextStyle(fontWeight:FontWeight.w800))),body:ListView(padding:const EdgeInsets.fromLTRB(18,8,18,30),children:[
+  @override Widget build(BuildContext context){return Scaffold(appBar:AppBar(title:const Text('Horários do estabelecimento',style:TextStyle(fontWeight:FontWeight.w800))),body:_loading?const Center(child:CircularProgressIndicator()):ListView(padding:const EdgeInsets.fromLTRB(18,8,18,30),children:[
     const Text('Escolha um modelo',style:TextStyle(fontSize:24,fontWeight:FontWeight.w900)),const SizedBox(height:6),const Text('O modelo é só o ponto de partida. Você pode alterar tudo depois.',style:TextStyle(color:Colors.white60)),const SizedBox(height:16),
     ...scheduleTemplates.map((template)=>Padding(padding:const EdgeInsets.only(bottom:9),child:_templateCard(template))),const SizedBox(height:18),const Text('Dias e horários',style:TextStyle(fontSize:20,fontWeight:FontWeight.w900)),const SizedBox(height:10),...List.generate(_days.length,_buildDay),const SizedBox(height:22),
     const Text('Horários por profissional',style:TextStyle(fontSize:20,fontWeight:FontWeight.w900)),const SizedBox(height:5),const Text('Por padrão, todos seguem o horário do estabelecimento. Ative para personalizar um profissional.',style:TextStyle(color:Colors.white60)),const SizedBox(height:10),
     ...sampleBarbers.map((barber)=>Card(color:_card,child:SwitchListTile(activeThumbColor:_gold,title:Text(barber.name,style:const TextStyle(fontWeight:FontWeight.w800)),subtitle:Text((_barberCustom[barber.id]??false)?'Horário personalizado ativado':'Usa o horário geral do estabelecimento'),value:_barberCustom[barber.id]??false,onChanged:(value)=>setState(()=>_barberCustom[barber.id]=value)))),
-    const SizedBox(height:22),FilledButton.icon(style:FilledButton.styleFrom(backgroundColor:_gold,foregroundColor:Colors.black,padding:const EdgeInsets.symmetric(vertical:16)),onPressed:()=>ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Configuração pronta para ser ligada ao banco na próxima etapa.'))),icon:const Icon(Icons.save_rounded),label:const Text('SALVAR HORÁRIOS',style:TextStyle(fontWeight:FontWeight.w900)))
+    const SizedBox(height:22),FilledButton.icon(style:FilledButton.styleFrom(backgroundColor:_gold,foregroundColor:Colors.black,padding:const EdgeInsets.symmetric(vertical:16)),onPressed:_saving?null:_saveHours,icon:_saving?const SizedBox(width:20,height:20,child:CircularProgressIndicator(strokeWidth:2)):const Icon(Icons.save_rounded),label:Text(_saving?'SALVANDO...':'SALVAR HORÁRIOS',style:const TextStyle(fontWeight:FontWeight.w900)))
   ]));}
 
   Widget _templateCard(ScheduleTemplate template){final selected=_template.id==template.id;return Material(color:_card,borderRadius:BorderRadius.circular(15),child:InkWell(borderRadius:BorderRadius.circular(15),onTap:()=>setState(()=>_applyTemplate(template)),child:Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(borderRadius:BorderRadius.circular(15),border:Border.all(color:selected?_gold:Colors.white10,width:selected?2:1)),child:Row(children:[Icon(selected?Icons.radio_button_checked:Icons.radio_button_off,color:selected?_gold:Colors.white54),const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(template.name,style:const TextStyle(fontWeight:FontWeight.w800)),const SizedBox(height:3),Text(template.description,style:const TextStyle(color:Colors.white60,fontSize:12))]))]))));}
