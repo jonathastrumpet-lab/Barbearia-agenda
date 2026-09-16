@@ -12,10 +12,10 @@ void main() {
   });
 
   testWidgets('exibe login seguro antes de abrir a agenda', (tester) async {
-    await tester.pumpWidget(const BarbeariaAgendaApp());
+    await tester.pumpWidget(const AgendaHubApp());
     await tester.pumpAndSettle();
 
-    expect(find.text('Entrar na Barbearia Agenda'), findsOneWidget);
+    expect(find.text('Entrar no Agenda Hub'), findsOneWidget);
     expect(find.text('E-mail'), findsOneWidget);
     expect(find.text('Senha'), findsOneWidget);
     expect(find.text('ENTRAR'), findsOneWidget);
