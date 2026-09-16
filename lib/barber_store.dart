@@ -56,7 +56,7 @@ class BarberStore {
 
   static Future<BarberRecord> add(String name) async {
     final cleanName = name.trim();
-    if (cleanName.isEmpty) throw ArgumentError('Informe o nome do barbeiro.');
+    if (cleanName.isEmpty) throw ArgumentError('Informe o nome do profissional.');
 
     final row = await AppointmentStore.client
         .from('barbers')
@@ -73,7 +73,7 @@ class BarberStore {
 
   static Future<void> rename(String id, String name) async {
     final cleanName = name.trim();
-    if (cleanName.isEmpty) throw ArgumentError('Informe o nome do barbeiro.');
+    if (cleanName.isEmpty) throw ArgumentError('Informe o nome do profissional.');
 
     await AppointmentStore.client
         .from('barbers')
