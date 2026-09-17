@@ -90,8 +90,20 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     final name = appointment.clientName?.trim();
     if (name?.isNotEmpty == true) return name!;
 
-    final email = appointment.clientEmail?.trim();
-    if (email?.toLowerCase() == 'jonathas.trumpet@gmail.com') return 'Jonathas';
+    // Compatibilidade com agendamentos legados que foram gravados sem clientName.
+    // Não altera o registro nem a regra de cancelamento: apenas resolve o nome
+    // exibido na agenda do DONO/ADMIN a partir do e-mail já persistido.
+    final email = appointment.clientEmail
+        ?.trim()
+        .toLowerCase()
+        .replaceAll(RegExp(r'\\s+'), '');
+
+    const legacyNamesByEmail = <String, String>{
+      'jonathas.trumpet@gmail.com': 'Jonathas',
+    };
+
+    final legacyName = email == null ? null : legacyNamesByEmail[email];
+    if (legacyName != null) return legacyName;
 
     return 'Cliente não identificado';
   }
