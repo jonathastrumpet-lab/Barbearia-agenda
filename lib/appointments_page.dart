@@ -91,7 +91,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     if (name?.isNotEmpty == true) return name!;
 
     final email = appointment.clientEmail?.trim();
-    if (email == 'jonathas.trumpet@gmail.com') return email!;
+    if (email?.toLowerCase() == 'jonathas.trumpet@gmail.com') return 'Jonathas';
 
     return 'Cliente não identificado';
   }
@@ -216,7 +216,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                       if (AppointmentStore.isAdmin) ...[
                         const SizedBox(height: 10),
                         Text(
-                          'Cliente: ${item.clientName?.trim().isNotEmpty == true ? item.clientName : 'Cliente não identificado'}',
+                          'Cliente: ${_clientDisplayName(item)}',
                           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(height: 4),
