@@ -1,5 +1,5 @@
 name: Build Android APK
-# Build trigger: legacy client fallback validation 2026-09-17
+# Build trigger: APK fallback fix retry 2026-09-17 20:52
 
 on:
   push:
