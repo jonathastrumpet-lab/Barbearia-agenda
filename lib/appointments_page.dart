@@ -203,6 +203,20 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                         '${item.barber} • ${item.duration}',
                         style: const TextStyle(color: Color(0xFFAAAAAA)),
                       ),
+                      if (AppointmentStore.isAdmin) ...[
+                        const SizedBox(height: 10),
+                        Text(
+                          'Cliente: ${item.clientName?.trim().isNotEmpty == true ? item.clientName : 'Cliente não identificado'}',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'E-mail: ${item.clientEmail?.trim().isNotEmpty == true ? item.clientEmail : 'E-mail não identificado'}',
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 2,
+                          style: const TextStyle(color: Color(0xFFAAAAAA)),
+                        ),
+                      ],
                       const SizedBox(height: 14),
                       if (cancelled)
                         Container(
