@@ -1,4 +1,5 @@
 name: Build Android APK
+# Build trigger: legacy client fallback validation
 
 on:
   push:
