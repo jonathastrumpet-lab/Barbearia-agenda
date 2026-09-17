@@ -86,6 +86,16 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     return '$day/$month/${date.year}';
   }
 
+  String _clientDisplayName(Appointment appointment) {
+    final name = appointment.clientName?.trim();
+    if (name?.isNotEmpty == true) return name!;
+
+    final email = appointment.clientEmail?.trim();
+    if (email == 'jonathas.trumpet@gmail.com') return email!;
+
+    return 'Cliente não identificado';
+  }
+
   String _cancellationOrigin(Appointment appointment) {
     if (appointment.cancelledBy == 'client') return 'Cancelado pelo CLIENTE';
     if (appointment.cancelledBy == 'admin') return 'Cancelado pelo DONO/ADMIN';
