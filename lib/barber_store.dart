@@ -5,16 +5,19 @@ class BarberRecord {
     required this.id,
     required this.name,
     required this.active,
+    this.usesCustomSchedule = false,
   });
 
   final String id;
   final String name;
   final bool active;
+  final bool usesCustomSchedule;
 
   factory BarberRecord.fromJson(Map<String, dynamic> json) => BarberRecord(
         id: json['id'].toString(),
         name: json['name']?.toString() ?? '',
         active: json['active'] == true,
+        usesCustomSchedule: json['uses_custom_schedule'] == true,
       );
 }
 
@@ -32,7 +35,7 @@ class BarberStore {
   static Future<List<BarberRecord>> loadAll() async {
     final rows = await AppointmentStore.client
         .from('barbers')
-        .select('id,name,active')
+        .select('id,name,active,uses_custom_schedule')
         .eq('barbershop_id', _shopId)
         .order('name');
 
@@ -44,7 +47,7 @@ class BarberStore {
   static Future<List<BarberRecord>> loadActive() async {
     final rows = await AppointmentStore.client
         .from('barbers')
-        .select('id,name,active')
+        .select('id,name,active,uses_custom_schedule')
         .eq('barbershop_id', _shopId)
         .eq('active', true)
         .order('name');
@@ -64,8 +67,9 @@ class BarberStore {
           'barbershop_id': _shopId,
           'name': cleanName,
           'active': true,
+          'uses_custom_schedule': false,
         })
-        .select('id,name,active')
+        .select('id,name,active,uses_custom_schedule')
         .single();
 
     return BarberRecord.fromJson(row);
@@ -86,6 +90,14 @@ class BarberStore {
     await AppointmentStore.client
         .from('barbers')
         .update({'active': active})
+        .eq('id', id)
+        .eq('barbershop_id', _shopId);
+  }
+
+  static Future<void> setUsesCustomSchedule(String id, bool enabled) async {
+    await AppointmentStore.client
+        .from('barbers')
+        .update({'uses_custom_schedule': enabled})
         .eq('id', id)
         .eq('barbershop_id', _shopId);
   }
