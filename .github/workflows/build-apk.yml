@@ -1,5 +1,5 @@
 name: Build Android APK
-# Build trigger: legacy client fallback validation
+# Build trigger: legacy client fallback validation 2026-09-17
 
 on:
   push:
