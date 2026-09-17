@@ -217,7 +217,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                       if (AppointmentStore.isAdmin) ...[
                         const SizedBox(height: 10),
                         Text(
-                          'Cliente: ${item.clientName?.trim().isNotEmpty == true ? item.clientName : 'Cliente não identificado'}',
+                          'Cliente: ${_clientDisplayName(item)}',
                           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(height: 4),
