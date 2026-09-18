@@ -60,6 +60,83 @@ class _ScheduleBlocksPageState extends State<ScheduleBlocksPage> {
     }
     setState(() => saving = true);
     try {
+      // Validação no app antes do RPC: não permite criar bloqueio que
+      // sobreponha qualquer agendamento ativo do mesmo profissional/data.
+      // A regra de sobreposição é: blockStart < appointmentEnd &&
+      // blockEnd > appointmentStart. Horários encostados (ex.: 17-18 e
+      // 18-19) continuam permitidos.
+      final shop = AppointmentStore.shopId;
+      if (shop == null) {
+        msg('Estabelecimento não selecionado.');
+        return;
+      }
+
+      final selectedBarber = barberId == null
+          ? null
+          : barbers.where((b) => b.id == barberId).firstOrNull;
+      if (barberId != null && selectedBarber == null) {
+        msg('Profissional não encontrado.');
+        return;
+      }
+
+      final dayStart =
+          DateTime(date.year, date.month, date.day).toIso8601String();
+      final dayEnd =
+          DateTime(date.year, date.month, date.day + 1).toIso8601String();
+
+      dynamic appointmentQuery = AppointmentStore.client
+          .from('appointments')
+          .select('time,duration,barber')
+          .eq('barbershop_id', shop)
+          .eq('status', 'scheduled')
+          .gte('date_iso', dayStart)
+          .lt('date_iso', dayEnd);
+
+      if (selectedBarber != null) {
+        appointmentQuery = appointmentQuery.eq('barber', selectedBarber.name);
+      }
+
+      final appointmentRows = await appointmentQuery;
+      final hasConflict = (appointmentRows as List<dynamic>).any((raw) {
+        final row = raw as Map<String, dynamic>;
+        final parts = (row['time']?.toString() ?? '').split(':');
+        if (parts.length < 2) return false;
+        final appointmentStart =
+            int.tryParse(parts[0]) == null || int.tryParse(parts[1]) == null
+                ? null
+                : int.parse(parts[0]) * 60 + int.parse(parts[1]);
+        if (appointmentStart == null) return false;
+
+        // duration hoje é persistida como texto (ex.: "60 min" / "1h").
+        // Extrai minutos de forma compatível com os formatos existentes.
+        final durationText = row['duration']?.toString().toLowerCase() ?? '';
+        int durationMinutes = 60;
+        final hourMatch = RegExp(r'(\\d+)\\s*h').firstMatch(durationText);
+        final minuteMatch =
+            RegExp(r'(\\d+)\\s*(?:min|m)').firstMatch(durationText);
+        if (hourMatch != null) {
+          durationMinutes = int.parse(hourMatch.group(1)!) * 60;
+          if (minuteMatch != null) {
+            durationMinutes += int.parse(minuteMatch.group(1)!);
+          }
+        } else if (minuteMatch != null) {
+          durationMinutes = int.parse(minuteMatch.group(1)!);
+        } else {
+          final number = RegExp(r'\\d+').firstMatch(durationText);
+          if (number != null) durationMinutes = int.parse(number.group(0)!);
+        }
+        if (durationMinutes <= 0) durationMinutes = 60;
+
+        final appointmentEnd = appointmentStart + durationMinutes;
+        return start < appointmentEnd && end > appointmentStart;
+      });
+
+      if (hasConflict) {
+        msg(
+            'Não é possível bloquear este período. Já existe um agendamento ativo para este profissional.');
+        return;
+      }
+
       await AppointmentStore.client.rpc('create_schedule_block', params: {
         'p_barbershop_id': AppointmentStore.shopId,
         'p_block_date': ds(date),
