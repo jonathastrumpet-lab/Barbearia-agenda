@@ -1,4 +1,5 @@
 name: Flutter CI
+# Trigger build partial schedule blocks
 
 on:
   push:
