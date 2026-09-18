@@ -1,5 +1,5 @@
 name: Build Android APK
-# Build trigger: force Android APK build 2026-09-17
+# Build trigger: partial schedule blocks 2026-09-17
 
 on:
   push:
