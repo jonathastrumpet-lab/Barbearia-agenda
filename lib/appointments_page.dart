@@ -121,7 +121,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
       onTap: () => setState(() => _filter = filter),
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 11),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 11),
         decoration: BoxDecoration(
           color: selected ? _gold.withValues(alpha: 0.18) : const Color(0xFF1D1D1D),
           borderRadius: BorderRadius.circular(12),
@@ -134,7 +134,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
             color: selected ? _gold : Colors.white70,
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
           ),
         ),
@@ -210,11 +210,11 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                 if (index == 0) {
                   return Row(
                     children: [
-                      Expanded(child: _filterChip('Todos', items.length, _AppointmentFilter.all)),
-                      const SizedBox(width: 8),
-                      Expanded(child: _filterChip('Abertos', openCount, _AppointmentFilter.open)),
-                      const SizedBox(width: 8),
-                      Expanded(child: _filterChip('Cancelados', cancelledCount, _AppointmentFilter.cancelled)),
+                      Expanded(flex: 9, child: _filterChip('Todos', items.length, _AppointmentFilter.all)),
+                      const SizedBox(width: 6),
+                      Expanded(flex: 10, child: _filterChip('Abertos', openCount, _AppointmentFilter.open)),
+                      const SizedBox(width: 6),
+                      Expanded(flex: 12, child: _filterChip('Cancelados', cancelledCount, _AppointmentFilter.cancelled)),
                     ],
                   );
                 }
