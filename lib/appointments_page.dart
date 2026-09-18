@@ -12,6 +12,7 @@ class AppointmentsPage extends StatefulWidget {
 class _AppointmentsPageState extends State<AppointmentsPage> {
   static const _gold = Color(0xFFD7A84B);
   late Future<List<Appointment>> _appointments;
+  _AppointmentFilter _filter = _AppointmentFilter.open;
 
   @override
   void initState() {
@@ -114,6 +115,33 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     return 'Origem do cancelamento não registrada';
   }
 
+  Widget _filterChip(String label, int count, _AppointmentFilter filter) {
+    final selected = _filter == filter;
+    return InkWell(
+      onTap: () => setState(() => _filter = filter),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 11),
+        decoration: BoxDecoration(
+          color: selected ? _gold.withValues(alpha: 0.18) : const Color(0xFF1D1D1D),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: selected ? _gold : Colors.white12),
+        ),
+        child: Text(
+          '$label ($count)',
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: selected ? _gold : Colors.white70,
+            fontSize: 12,
+            fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -160,6 +188,14 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
             );
           }
 
+          final openCount = items.where((item) => !item.isCancelled).length;
+          final cancelledCount = items.where((item) => item.isCancelled).length;
+          final filteredItems = switch (_filter) {
+            _AppointmentFilter.all => items,
+            _AppointmentFilter.open => items.where((item) => !item.isCancelled).toList(),
+            _AppointmentFilter.cancelled => items.where((item) => item.isCancelled).toList(),
+          };
+
           return RefreshIndicator(
             onRefresh: () async {
               setState(_reload);
@@ -168,10 +204,21 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
             child: ListView.separated(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-              itemCount: items.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemCount: filteredItems.length + 1,
+              separatorBuilder: (_, index) => SizedBox(height: index == 0 ? 14 : 12),
               itemBuilder: (context, index) {
-                final item = items[index];
+                if (index == 0) {
+                  return Row(
+                    children: [
+                      Expanded(child: _filterChip('Todos', items.length, _AppointmentFilter.all)),
+                      const SizedBox(width: 8),
+                      Expanded(child: _filterChip('Abertos', openCount, _AppointmentFilter.open)),
+                      const SizedBox(width: 8),
+                      Expanded(child: _filterChip('Cancelados', cancelledCount, _AppointmentFilter.cancelled)),
+                    ],
+                  );
+                }
+                final item = filteredItems[index - 1];
                 final cancelled = item.isCancelled;
                 return Container(
                   padding: const EdgeInsets.all(18),
@@ -294,3 +341,5 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     );
   }
 }
+
+enum _AppointmentFilter { all, open, cancelled }
