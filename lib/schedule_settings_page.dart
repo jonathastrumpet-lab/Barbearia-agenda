@@ -4,6 +4,7 @@ import 'appointment_store.dart';
 import 'barber_store.dart';
 import 'data/schedule_templates.dart';
 import 'models/barbershop_models.dart';
+import 'schedule_blocks_page.dart';
 
 class ScheduleSettingsPage extends StatefulWidget {
   const ScheduleSettingsPage({super.key});
@@ -87,6 +88,7 @@ class _ScheduleSettingsPageState extends State<ScheduleSettingsPage> {
   Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Horários do estabelecimento',style:TextStyle(fontWeight:FontWeight.w800))),body:_loading?const Center(child:CircularProgressIndicator()):ListView(padding:const EdgeInsets.fromLTRB(18,8,18,30),children:[
     const Text('Escolha um modelo',style:TextStyle(fontSize:24,fontWeight:FontWeight.w900)),const SizedBox(height:6),const Text('O modelo é só o ponto de partida. Você pode alterar tudo depois.',style:TextStyle(color:Colors.white60)),const SizedBox(height:16),
     ...scheduleTemplates.map((t)=>Padding(padding:const EdgeInsets.only(bottom:9),child:_templateCard(t))),const SizedBox(height:18),const Text('Dias e horários',style:TextStyle(fontSize:20,fontWeight:FontWeight.w900)),const SizedBox(height:10),...List.generate(_days.length,(i)=>_dayCard(_days,i,null)),const SizedBox(height:22),
+    FilledButton.icon(onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const ScheduleBlocksPage())),icon:const Icon(Icons.block_rounded),label:const Text('BLOQUEAR HORÁRIO'),style:FilledButton.styleFrom(backgroundColor:Colors.white12,foregroundColor:_gold,padding:const EdgeInsets.symmetric(vertical:14))),const SizedBox(height:22),
     const Text('Horários por profissional',style:TextStyle(fontSize:20,fontWeight:FontWeight.w900)),const SizedBox(height:5),const Text('Por padrão, todos seguem o horário do estabelecimento. Ative para personalizar um profissional.',style:TextStyle(color:Colors.white60)),const SizedBox(height:10),
     if(_barbers.isEmpty)const Card(child:Padding(padding:EdgeInsets.all(16),child:Text('Nenhum profissional cadastrado neste estabelecimento.'))),..._barbers.map(_professionalCard),const SizedBox(height:22),FilledButton.icon(style:FilledButton.styleFrom(backgroundColor:_gold,foregroundColor:Colors.black,padding:const EdgeInsets.symmetric(vertical:16)),onPressed:_saving?null:_saveHours,icon:_saving?const SizedBox(width:20,height:20,child:CircularProgressIndicator(strokeWidth:2)):const Icon(Icons.save_rounded),label:Text(_saving?'SALVANDO...':'SALVAR HORÁRIOS',style:const TextStyle(fontWeight:FontWeight.w900)))
   ]));
