@@ -21,6 +21,8 @@ class BarberRecord {
       );
 }
 
+class ProfessionalPlanLimitException implements Exception { const ProfessionalPlanLimitException(); }
+
 class BarberStore {
   BarberStore._();
 
@@ -61,6 +63,7 @@ class BarberStore {
     final cleanName = name.trim();
     if (cleanName.isEmpty) throw ArgumentError('Informe o nome do profissional.');
 
+    try {
     final row = await AppointmentStore.client
         .from('barbers')
         .insert({
@@ -73,6 +76,12 @@ class BarberStore {
         .single();
 
     return BarberRecord.fromJson(row);
+    } catch (e) {
+      if (e.toString().contains('professional_plan_limit_reached')) {
+        throw const ProfessionalPlanLimitException();
+      }
+      rethrow;
+    }
   }
 
   static Future<void> rename(String id, String name) async {
