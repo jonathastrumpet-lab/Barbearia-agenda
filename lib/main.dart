@@ -8,6 +8,7 @@ import 'booking_page.dart';
 import 'schedule_settings_page.dart';
 import 'services_page.dart';
 import 'team_page.dart';
+import 'platform_admin_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,8 +32,9 @@ class _HomePageState extends State<HomePage>{
   Future<void> _logout()async{await AppointmentStore.signOut();if(!mounted)return;Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute<void>(builder:(_)=>const AuthGate(child:HomePage())),(_)=>false);}
   Future<void> _changeShop()async{await AppointmentStore.clearClientShop();if(!mounted)return;Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute<void>(builder:(_)=>const AuthGate(child:HomePage())),(_)=>false);}
   @override Widget build(BuildContext context){
-    final admin=AppointmentStore.isAdmin;
+    final admin=AppointmentStore.isEstablishmentAdmin;
     final actions=<Widget>[
+      if(AppointmentStore.isPlatformAdmin)_HomeActionCard(icon:Icons.admin_panel_settings_rounded,title:'Painel Geral',subtitle:'Administração global do Agenda Hub',highlighted:true,onTap:()=>_open(context,const PlatformAdminPage())),
       _HomeActionCard(icon:Icons.calendar_month_rounded,title:'Agendar horário',subtitle:'Escolha serviço, profissional e horário',highlighted:true,onTap:()=>_open(context,const BookingPage())),
       _HomeActionCard(icon:Icons.event_available_rounded,title:admin?'Agenda do estabelecimento':'Meus agendamentos',subtitle:admin?'Veja os próximos horários do estabelecimento':'Veja e cancele seus próximos horários',onTap:()=>_open(context,const AppointmentsPage())),
       if(!admin)_HomeActionCard(icon:Icons.storefront_outlined,title:'Trocar estabelecimento',subtitle:'Escolha outro estabelecimento',onTap:_changeShop),
