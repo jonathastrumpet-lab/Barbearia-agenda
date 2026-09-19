@@ -8,6 +8,8 @@ import 'booking_page.dart';
 import 'schedule_settings_page.dart';
 import 'services_page.dart';
 import 'team_page.dart';
+import 'platform_admin_page.dart';
+import 'platform_admin_store.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,8 +26,9 @@ class AgendaHubApp extends StatelessWidget {
 class HomePage extends StatefulWidget { const HomePage({super.key}); @override State<HomePage> createState()=>_HomePageState(); }
 class _HomePageState extends State<HomePage>{
   static const _gold=Color(0xFFD7A84B),_card=Color(0xFF1D1D1D);
-  String _appVersion='';
-  @override void initState(){super.initState();_loadAppVersion();}
+  String _appVersion=''; bool _platformAdmin=false;
+  @override void initState(){super.initState();_loadAppVersion();_loadPlatformAdmin();}
+  Future<void> _loadPlatformAdmin()async{try{final v=await PlatformAdminStore.isPlatformAdmin();if(mounted)setState(()=>_platformAdmin=v);}catch(_){}}
   Future<void> _loadAppVersion()async{final info=await PackageInfo.fromPlatform();if(!mounted)return;setState(()=>_appVersion='Versão ${info.version} • Build ${info.buildNumber}');}
   void _open(BuildContext context,Widget page)=>Navigator.of(context).push(MaterialPageRoute<void>(builder:(_)=>page));
   Future<void> _logout()async{await AppointmentStore.signOut();if(!mounted)return;Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute<void>(builder:(_)=>const AuthGate(child:HomePage())),(_)=>false);}
@@ -33,6 +36,7 @@ class _HomePageState extends State<HomePage>{
   @override Widget build(BuildContext context){
     final admin=AppointmentStore.isAdmin;
     final actions=<Widget>[
+      if(_platformAdmin)_HomeActionCard(icon:Icons.admin_panel_settings_rounded,title:'Administração Agenda Hub',subtitle:'Assinaturas, limites e estabelecimentos',highlighted:true,onTap:()=>_open(context,const PlatformAdminPage())),
       _HomeActionCard(icon:Icons.calendar_month_rounded,title:'Agendar horário',subtitle:'Escolha serviço, profissional e horário',highlighted:true,onTap:()=>_open(context,const BookingPage())),
       _HomeActionCard(icon:Icons.event_available_rounded,title:admin?'Agenda do estabelecimento':'Meus agendamentos',subtitle:admin?'Veja os próximos horários do estabelecimento':'Veja e cancele seus próximos horários',onTap:()=>_open(context,const AppointmentsPage())),
       if(!admin)_HomeActionCard(icon:Icons.storefront_outlined,title:'Trocar estabelecimento',subtitle:'Escolha outro estabelecimento',onTap:_changeShop),
