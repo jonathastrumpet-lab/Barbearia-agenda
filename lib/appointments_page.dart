@@ -280,6 +280,11 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                         ),
                         const SizedBox(height: 4),
                         Text(
+                          'Telefone: ${item.clientPhone?.trim().isNotEmpty == true ? item.clientPhone : 'Telefone não informado'}',
+                          style: const TextStyle(color: Color(0xFFAAAAAA)),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
                           'E-mail: ${item.clientEmail?.trim().isNotEmpty == true ? item.clientEmail : 'E-mail não identificado'}',
                           overflow: TextOverflow.ellipsis,
                           maxLines: 2,
