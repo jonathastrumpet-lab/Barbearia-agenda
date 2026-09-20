@@ -7,10 +7,12 @@ class PlatformAdminStore {
   static Future<List<Map<String,dynamic>>> loadShops() async {
     final shops=(await _db.from('barbershops').select('id,name,slug,phone,active,created_at').order('name') as List).cast<Map<String,dynamic>>();
     final subs=(await _db.from('barbershop_subscriptions').select() as List).cast<Map<String,dynamic>>();
-    final barbers=(await _db.from('barbers').select('barbershop_id,id') as List).cast<Map<String,dynamic>>();
+    final barbers=(await _db.from('barbers').select('barbershop_id,id,active') as List).cast<Map<String,dynamic>>();
     final appointments=(await _db.from('appointments').select('barbershop_id,id') as List).cast<Map<String,dynamic>>();
+    final plans=(await _db.from('subscription_plans').select('id,max_professionals') as List).cast<Map<String,dynamic>>();
     final subByShop={for(final s in subs)s['barbershop_id'].toString():s};
-    return shops.map((s){final id=s['id'].toString();return {...s,'subscription':subByShop[id],'professionals':barbers.where((x)=>x['barbershop_id'].toString()==id).length,'appointments':appointments.where((x)=>x['barbershop_id'].toString()==id).length};}).toList();
+    final planById={for(final p in plans)p['id'].toString():p};
+    return shops.map((s){final id=s['id'].toString(),sub=subByShop[id];final plan=sub==null?null:planById[sub['plan_id']?.toString()];final custom=sub?['custom_max_professionals'];final effective=custom??plan?['max_professionals'];final shopBarbers=barbers.where((x)=>x['barbershop_id'].toString()==id);return {...s,'subscription':sub,'professionals':shopBarbers.length,'active_professionals':shopBarbers.where((x)=>x['active']==true).length,'effective_max_professionals':effective,'appointments':appointments.where((x)=>x['barbershop_id'].toString()==id).length};}).toList();
   }
   static Future<List<Map<String,dynamic>>> loadPlans() async => (await _db.from('subscription_plans').select().order('name') as List).cast<Map<String,dynamic>>();
   static Future<List<Map<String,dynamic>>> loadAudit() async => (await _db.from('platform_audit_log').select().order('created_at',ascending:false).limit(50) as List).cast<Map<String,dynamic>>();
