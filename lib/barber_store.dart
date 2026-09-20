@@ -100,33 +100,21 @@ class BarberStore {
   }
 
   static Future<void> _ensureActivationWithinPlanLimit() async {
-    final subs = await AppointmentStore.client
-        .from('barbershop_subscriptions')
-        .select('plan_id,custom_max_professionals')
-        .eq('barbershop_id', _shopId)
-        .limit(1);
-    final list = subs as List<dynamic>;
-    if (list.isEmpty) return;
-    final sub = list.first as Map<String,dynamic>;
-    int? limit = sub['custom_max_professionals'] as int?;
-    if (limit == null) {
-      final planId = sub['plan_id']?.toString();
-      if (planId != null) {
-        final plans = await AppointmentStore.client
-            .from('subscription_plans')
-            .select('max_professionals')
-            .eq('id', planId)
-            .limit(1);
-        final planList = plans as List<dynamic>;
-        if (planList.isNotEmpty) limit = (planList.first as Map<String,dynamic>)['max_professionals'] as int?;
-      }
-    }
+    // Consulta o limite efetivo do estabelecimento selecionado a cada tentativa.
+    // Evita usar o limite de outro estabelecimento quando o mesmo dono possui mais de um.
+    final value = await AppointmentStore.client.rpc(
+      'my_professional_limit',
+      params: {'p_barbershop_id': _shopId},
+    );
+    final int? limit = value is int ? value : int.tryParse(value?.toString() ?? '');
     if (limit == null) return;
+
     final activeRows = await AppointmentStore.client
         .from('barbers')
         .select('id')
         .eq('barbershop_id', _shopId)
         .eq('active', true);
+
     if ((activeRows as List<dynamic>).length >= limit) {
       throw ProfessionalPlanLimitException(limit);
     }
