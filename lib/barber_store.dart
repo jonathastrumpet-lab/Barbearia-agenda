@@ -21,7 +21,7 @@ class BarberRecord {
       );
 }
 
-class ProfessionalPlanLimitException implements Exception { const ProfessionalPlanLimitException(); }
+class ProfessionalPlanLimitException implements Exception { const ProfessionalPlanLimitException(this.limit); final int limit; }
 
 class BarberStore {
   BarberStore._();
@@ -128,7 +128,7 @@ class BarberStore {
         .eq('barbershop_id', _shopId)
         .eq('active', true);
     if ((activeRows as List<dynamic>).length >= limit) {
-      throw const ProfessionalPlanLimitException();
+      throw ProfessionalPlanLimitException(limit);
     }
   }
 
