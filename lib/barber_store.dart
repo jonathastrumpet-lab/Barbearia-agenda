@@ -21,6 +21,8 @@ class BarberRecord {
       );
 }
 
+class ProfessionalPlanLimitException implements Exception { const ProfessionalPlanLimitException(); }
+
 class BarberStore {
   BarberStore._();
 
@@ -61,6 +63,8 @@ class BarberStore {
     final cleanName = name.trim();
     if (cleanName.isEmpty) throw ArgumentError('Informe o nome do profissional.');
 
+    await _ensureActivationWithinPlanLimit();
+
     final row = await AppointmentStore.client
         .from('barbers')
         .insert({
@@ -87,11 +91,45 @@ class BarberStore {
   }
 
   static Future<void> setActive(String id, bool active) async {
+    if (active) await _ensureActivationWithinPlanLimit();
     await AppointmentStore.client
         .from('barbers')
         .update({'active': active})
         .eq('id', id)
         .eq('barbershop_id', _shopId);
+  }
+
+  static Future<void> _ensureActivationWithinPlanLimit() async {
+    final subs = await AppointmentStore.client
+        .from('barbershop_subscriptions')
+        .select('plan_id,custom_max_professionals')
+        .eq('barbershop_id', _shopId)
+        .limit(1);
+    final list = subs as List<dynamic>;
+    if (list.isEmpty) return;
+    final sub = list.first as Map<String,dynamic>;
+    int? limit = sub['custom_max_professionals'] as int?;
+    if (limit == null) {
+      final planId = sub['plan_id']?.toString();
+      if (planId != null) {
+        final plans = await AppointmentStore.client
+            .from('subscription_plans')
+            .select('max_professionals')
+            .eq('id', planId)
+            .limit(1);
+        final planList = plans as List<dynamic>;
+        if (planList.isNotEmpty) limit = (planList.first as Map<String,dynamic>)['max_professionals'] as int?;
+      }
+    }
+    if (limit == null) return;
+    final activeRows = await AppointmentStore.client
+        .from('barbers')
+        .select('id')
+        .eq('barbershop_id', _shopId)
+        .eq('active', true);
+    if ((activeRows as List<dynamic>).length >= limit) {
+      throw const ProfessionalPlanLimitException();
+    }
   }
 
   static Future<void> setUsesCustomSchedule(String id, bool enabled) async {
