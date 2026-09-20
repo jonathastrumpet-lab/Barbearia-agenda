@@ -3,7 +3,7 @@ name: Build Android APK
 
 'on':
   push:
-    branches: [main]
+    branches: [main, feature/platform-admin-build-133]
   pull_request:
     branches: [main]
   workflow_dispatch:
