@@ -1,5 +1,5 @@
 name: Build Android APK
-# Build trigger: version metadata guaranteed from pubspec.yaml
+# Build number is derived from the GitHub Actions run number; pubspec keeps the semantic version.
 
 'on':
   push:
@@ -28,12 +28,12 @@ jobs:
           cache: true
       - name: Install Flutter dependencies
         run: flutter pub get
-      - name: Read app version from pubspec
+      - name: Prepare app version
         shell: bash
         run: |
           FULL_VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}')
           VERSION_NAME="${FULL_VERSION%%+*}"
-          BUILD_NUMBER="${FULL_VERSION##*+}"
+          BUILD_NUMBER="$GITHUB_RUN_NUMBER"
           echo "VERSION_NAME=$VERSION_NAME" >> "$GITHUB_ENV"
           echo "BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
           echo "Building version $VERSION_NAME, build $BUILD_NUMBER"
