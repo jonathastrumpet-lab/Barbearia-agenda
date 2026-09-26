@@ -96,11 +96,18 @@ class BarberStore {
   }
 
   static Future<void> setActive(String id, bool active) async {
-    await AppointmentStore.client
-        .from('barbers')
-        .update({'active': active})
-        .eq('id', id)
-        .eq('barbershop_id', _shopId);
+    try {
+      await AppointmentStore.client
+          .from('barbers')
+          .update({'active': active})
+          .eq('id', id)
+          .eq('barbershop_id', _shopId);
+    } catch (e) {
+      if (e.toString().contains('professional_plan_limit_reached')) {
+        throw const ProfessionalPlanLimitException();
+      }
+      rethrow;
+    }
   }
 
   static Future<void> setUsesCustomSchedule(String id, bool enabled) async {
