@@ -3,6 +3,7 @@ name: Flutter CI
 # Force Actions event 2026-09-26-completion
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
   pull_request:
