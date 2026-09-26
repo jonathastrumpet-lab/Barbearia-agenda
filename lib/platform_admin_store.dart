@@ -15,6 +15,11 @@ class PlatformAdminStore {
     return shops.map((s){final id=s['id'].toString(),sub=subByShop[id];final plan=sub==null?null:planById[sub['plan_id']?.toString()];final custom=sub?['custom_max_professionals'];final effective=custom??plan?['max_professionals'];final shopBarbers=barbers.where((x)=>x['barbershop_id'].toString()==id);return {...s,'subscription':sub,'professionals':shopBarbers.length,'active_professionals':shopBarbers.where((x)=>x['active']==true).length,'effective_max_professionals':effective,'appointments':appointments.where((x)=>x['barbershop_id'].toString()==id).length};}).toList();
   }
   static Future<List<Map<String,dynamic>>> loadPlans() async => (await _db.from('subscription_plans').select().order('name') as List).cast<Map<String,dynamic>>();
+  static Future<List<Map<String,dynamic>>> loadPayments(String shopId) async => (await _db.from('subscription_payments').select().eq('barbershop_id',shopId).order('paid_at',ascending:false) as List).cast<Map<String,dynamic>>();
+  static Future<void> confirmPixPayment(String shopId,{required String planId,required int amountCents,String? notes}) async {
+    await _db.rpc('confirm_manual_pix_payment',params:{'p_barbershop_id':shopId,'p_plan_id':planId,'p_amount_cents':amountCents,'p_paid_at':DateTime.now().toUtc().toIso8601String(),'p_notes':notes});
+    await _audit('manual_pix_payment_confirmed','barbershop',shopId,{'plan_id':planId,'amount_cents':amountCents});
+  }
   static Future<List<Map<String,dynamic>>> loadAudit() async => (await _db.from('platform_audit_log').select().order('created_at',ascending:false).limit(50) as List).cast<Map<String,dynamic>>();
   static Future<void> setShopActive(String id,bool active) async {await _db.from('barbershops').update({'active':active}).eq('id',id);await _audit('shop_active_changed','barbershop',id,{'active':active});}
   static Future<void> updateSubscription(String id,{required String planId,required String status,int? maxProfessionals,int? maxAppointments}) async {await _db.from('barbershop_subscriptions').update({'plan_id':planId,'status':status,'custom_max_professionals':maxProfessionals,'custom_max_monthly_appointments':maxAppointments,'updated_at':DateTime.now().toUtc().toIso8601String()}).eq('barbershop_id',id);await _audit('subscription_changed','barbershop',id,{'plan_id':planId,'status':status});}
