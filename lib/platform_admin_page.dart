@@ -36,5 +36,5 @@ class _PlatformAdminPageState extends State<PlatformAdminPage> {
     const Text('AGENDA HUB',style:TextStyle(color:Color(0xFFD7A84B),fontWeight:FontWeight.w900,letterSpacing:2)),const SizedBox(height:12),const Text('Painel Geral',style:TextStyle(fontSize:28,fontWeight:FontWeight.w900)),const SizedBox(height:18),
     if(loading)const Center(child:Padding(padding:EdgeInsets.all(30),child:CircularProgressIndicator())) else if(error!=null)Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(children:[const Text('Não foi possível carregar o painel.'),TextButton(onPressed:load,child:const Text('Tentar novamente'))]))) else ...[
       Text('Estabelecimentos ('+shops.length.toString()+')',style:Theme.of(context).textTheme.titleLarge),...shops.map(shopCard),const SizedBox(height:18),Text('Planos ('+plans.length.toString()+')',style:Theme.of(context).textTheme.titleLarge),...plans.map((p)=>Card(child:ListTile(title:Text(p['name']?.toString()??p['id'].toString()),subtitle:Text('Profissionais: '+p['max_professionals'].toString()+' • Agendamentos/mês: '+p['max_monthly_appointments'].toString()),trailing:IconButton(icon:const Icon(Icons.edit_outlined),onPressed:()=>editPlan(p)))))]
-  ])))));}
+  ]))));}
 }
