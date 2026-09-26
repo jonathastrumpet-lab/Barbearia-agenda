@@ -1,6 +1,6 @@
 name: Flutter CI
 # Trigger build partial schedule blocks
-# Force Actions event 2026-09-26-completion
+# Force PR APK build 2026-09-26
 
 on:
   workflow_dispatch:
