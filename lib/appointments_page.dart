@@ -81,6 +81,37 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     );
   }
 
+  Future<void> _complete(Appointment appointment) async {
+    if (!AppointmentStore.isAdmin || !appointment.isOpen) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF202020),
+        title: const Text('Concluir atendimento?'),
+        content: Text('${appointment.service}\n${appointment.barber} • ${_formatDate(appointment.date)} às ${appointment.time}'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Voltar')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), style: FilledButton.styleFrom(backgroundColor: _gold, foregroundColor: Colors.black), child: const Text('Concluir atendimento')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await AppointmentStore.complete(appointment.id);
+    } catch (e) {
+      if (!mounted) return;
+      final raw = e.toString();
+      final message = raw.contains('APPOINTMENT_NOT_FINISHED')
+          ? 'Este atendimento ainda não terminou e não pode ser concluído.'
+          : 'Não foi possível concluir o atendimento. Tente novamente.';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), behavior: SnackBarBehavior.floating));
+      return;
+    }
+    if (!mounted) return;
+    setState(_reload);
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Atendimento concluído.'), behavior: SnackBarBehavior.floating));
+  }
+
   String _formatDate(DateTime date) {
     final day = date.day.toString().padLeft(2, '0');
     final month = date.month.toString().padLeft(2, '0');
@@ -188,11 +219,13 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
             );
           }
 
-          final openCount = items.where((item) => !item.isCancelled).length;
+          final openCount = items.where((item) => item.isOpen).length;
+          final completedCount = items.where((item) => item.isCompleted).length;
           final cancelledCount = items.where((item) => item.isCancelled).length;
           final filteredItems = switch (_filter) {
             _AppointmentFilter.all => items,
-            _AppointmentFilter.open => items.where((item) => !item.isCancelled).toList(),
+            _AppointmentFilter.open => items.where((item) => item.isOpen).toList(),
+            _AppointmentFilter.completed => items.where((item) => item.isCompleted).toList(),
             _AppointmentFilter.cancelled => items.where((item) => item.isCancelled).toList(),
           };
 
@@ -214,12 +247,15 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                       const SizedBox(width: 6),
                       Expanded(flex: 10, child: _filterChip('Abertos', openCount, _AppointmentFilter.open)),
                       const SizedBox(width: 6),
+                      Expanded(flex: 11, child: _filterChip('Concluídos', completedCount, _AppointmentFilter.completed)),
+                      const SizedBox(width: 6),
                       Expanded(flex: 12, child: _filterChip('Cancelados', cancelledCount, _AppointmentFilter.cancelled)),
                     ],
                   );
                 }
                 final item = filteredItems[index - 1];
                 final cancelled = item.isCancelled;
+                final completed = item.isCompleted;
                 return Container(
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
@@ -235,8 +271,8 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                       Row(
                         children: [
                           Icon(
-                            cancelled ? Icons.event_busy_rounded : Icons.event_available_rounded,
-                            color: cancelled ? Colors.redAccent : _gold,
+                            cancelled ? Icons.event_busy_rounded : completed ? Icons.check_circle_rounded : Icons.event_available_rounded,
+                            color: cancelled ? Colors.redAccent : completed ? Colors.greenAccent : _gold,
                           ),
                           const SizedBox(width: 10),
                           Expanded(
@@ -292,7 +328,14 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                         ),
                       ],
                       const SizedBox(height: 14),
-                      if (cancelled)
+                      if (completed)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(color: Colors.greenAccent.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.30))),
+                          child: Text('CONCLUÍDO • ${item.completionSource == 'automatic' ? 'AUTOMÁTICO' : 'MANUAL'}', style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.w900)),
+                        )
+                      else if (cancelled)
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -322,10 +365,11 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                             ],
                           ),
                         )
-                      else
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
+                      else if (AppointmentStore.isAdmin)
+                        Column(children: [
+                          SizedBox(width: double.infinity, child: FilledButton.icon(onPressed: () => _complete(item), icon: const Icon(Icons.check_circle_outline), label: const Text('CONCLUIR ATENDIMENTO'), style: FilledButton.styleFrom(backgroundColor: _gold, foregroundColor: Colors.black))),
+                          const SizedBox(height: 8),
+                          SizedBox(width: double.infinity, child: OutlinedButton.icon(
                             onPressed: () => _cancel(item),
                             icon: const Icon(Icons.cancel_outlined),
                             label: const Text('CANCELAR AGENDAMENTO'),
@@ -333,8 +377,10 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                               foregroundColor: Colors.redAccent,
                               side: const BorderSide(color: Colors.redAccent),
                             ),
-                          ),
-                        ),
+                          )),
+                        ])
+                      else
+                        SizedBox(width: double.infinity, child: OutlinedButton.icon(onPressed: () => _cancel(item), icon: const Icon(Icons.cancel_outlined), label: const Text('CANCELAR AGENDAMENTO'), style: OutlinedButton.styleFrom(foregroundColor: Colors.redAccent, side: const BorderSide(color: Colors.redAccent)))),
                     ],
                   ),
                 );
@@ -347,4 +393,4 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
   }
 }
 
-enum _AppointmentFilter { all, open, cancelled }
+enum _AppointmentFilter { all, open, completed, cancelled }
