@@ -1,6 +1,7 @@
 name: Build Android APK
 # Build trigger: version metadata guaranteed from pubspec.yaml
 # Rebuild requested after establishment-context regression fix
+# PR trigger for Agenda Hub build 160
 
 'on':
   push:
