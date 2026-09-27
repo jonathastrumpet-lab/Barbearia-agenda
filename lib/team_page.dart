@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'barber_store.dart';\nimport 'appointment_store.dart';
+import 'barber_store.dart';
+import 'appointment_store.dart';
 
 class TeamPage extends StatefulWidget { const TeamPage({super.key}); @override State<TeamPage> createState()=>_TeamPageState(); }
 class _TeamPageState extends State<TeamPage>{
