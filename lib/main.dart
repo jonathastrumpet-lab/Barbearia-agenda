@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';\nimport 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import 'appointment_store.dart';
@@ -19,7 +19,7 @@ Future<void> main() async {
 class AgendaHubApp extends StatelessWidget {
   const AgendaHubApp({super.key});
   static const _background=Color(0xFF111111),_surface=Color(0xFF1B1B1B),_gold=Color(0xFFD7A84B);
-  @override Widget build(BuildContext context)=>MaterialApp(title:'Agenda Hub',debugShowCheckedModeBanner:false,theme:ThemeData(useMaterial3:true,brightness:Brightness.dark,scaffoldBackgroundColor:_background,colorScheme:const ColorScheme.dark(primary:_gold,secondary:_gold,surface:_surface),appBarTheme:const AppBarTheme(backgroundColor:_background,foregroundColor:Colors.white,elevation:0)),home:const AuthGate(child:HomePage()));
+  @override Widget build(BuildContext context)=>MaterialApp(title:'Agenda Hub',debugShowCheckedModeBanner:false,locale:const Locale('pt','BR'),supportedLocales:const [Locale('pt','BR')],localizationsDelegates:GlobalMaterialLocalizations.delegates,theme:ThemeData(useMaterial3:true,brightness:Brightness.dark,scaffoldBackgroundColor:_background,colorScheme:const ColorScheme.dark(primary:_gold,secondary:_gold,surface:_surface),appBarTheme:const AppBarTheme(backgroundColor:_background,foregroundColor:Colors.white,elevation:0)),home:const AuthGate(child:HomePage()));
 }
 
 class HomePage extends StatefulWidget { const HomePage({super.key}); @override State<HomePage> createState()=>_HomePageState(); }
