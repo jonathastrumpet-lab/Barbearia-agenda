@@ -4,7 +4,7 @@ name: Build Android APK
 
 'on':
   push:
-    branches: [main]
+    branches: [main, build/agenda-hub-163-targeted-fixes]
   pull_request:
     branches: [main]
   workflow_dispatch:
