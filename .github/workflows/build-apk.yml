@@ -1,10 +1,10 @@
-# Trigger Build 161 consolidation
+# Trigger Build 161 consolidation - explicit branch
 name: Build Android APK
 # Build trigger: version metadata guaranteed from pubspec.yaml
 
-'on':
+on:
   push:
-    branches: [main]
+    branches: [main, build/agenda-hub-161-consolidated]
   pull_request:
     branches: [main]
   workflow_dispatch:
