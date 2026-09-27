@@ -34,7 +34,7 @@ class BarberStore {
     return shop;
   }
 
-  static Future<List<BarberRecord>> loadAll() async {
+  static Future<List<BarberRecord>> loadAll({String? shopId}) async {\n    final scopedShopId = shopId ?? _shopId;
     final rows = await AppointmentStore.client
         .from('barbers')
         .select('id,name,active,uses_custom_schedule')
@@ -59,7 +59,7 @@ class BarberStore {
         .toList();
   }
 
-  static Future<BarberRecord> add(String name) async {
+  static Future<BarberRecord> add(String name, {String? shopId}) async {\n    final scopedShopId = shopId ?? _shopId;
     final cleanName = name.trim();
     if (cleanName.isEmpty) throw ArgumentError('Informe o nome do profissional.');
 
@@ -67,7 +67,7 @@ class BarberStore {
     final row = await AppointmentStore.client
         .from('barbers')
         .insert({
-          'barbershop_id': _shopId,
+          'barbershop_id': scopedShopId,
           'name': cleanName,
           'active': true,
           'uses_custom_schedule': false,
@@ -84,7 +84,7 @@ class BarberStore {
     }
   }
 
-  static Future<void> rename(String id, String name) async {
+  static Future<void> rename(String id, String name, {String? shopId}) async {\n    final scopedShopId = shopId ?? _shopId;
     final cleanName = name.trim();
     if (cleanName.isEmpty) throw ArgumentError('Informe o nome do profissional.');
 
@@ -95,7 +95,7 @@ class BarberStore {
         .eq('barbershop_id', _shopId);
   }
 
-  static Future<void> setActive(String id, bool active) async {
+  static Future<void> setActive(String id, bool active, {String? shopId}) async {\n    final scopedShopId = shopId ?? _shopId;
     try {
       await AppointmentStore.client
           .from('barbers')
