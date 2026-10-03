@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:flutter/services.dart';
 import 'appointment_store.dart';
 
 class OwnerSubscriptionPage extends StatefulWidget {
@@ -39,6 +40,7 @@ class _OwnerSubscriptionPageState extends State<OwnerSubscriptionPage>{
         const Align(alignment:Alignment.centerLeft,child:Text('PAGAR / RENOVAR VIA PIX',style:TextStyle(color:gold,fontWeight:FontWeight.w900,letterSpacing:1.2))),const SizedBox(height:16),
         Container(color:Colors.white,padding:const EdgeInsets.all(12),child:QrImageView(data:pixCopyPaste,size:210)),
         const SizedBox(height:14),const Text('Escaneie o QR Code no aplicativo do seu banco.',textAlign:TextAlign.center),
+        const SizedBox(height:14),SizedBox(width:double.infinity,child:ElevatedButton.icon(onPressed:()async{await Clipboard.setData(const ClipboardData(text:pixCopyPaste));if(!mounted)return;ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Código Pix copiado.')));},icon:const Icon(Icons.copy),label:const Text('Copiar código Pix'))),
         const SizedBox(height:12),SelectableText('Chave Pix: $pixKey',textAlign:TextAlign.center,style:const TextStyle(fontWeight:FontWeight.w700)),
         const SizedBox(height:14),const Text('Após pagar, aguarde a confirmação manual do Agenda Hub. A assinatura será renovada quando o pagamento for confirmado.',textAlign:TextAlign.center,style:TextStyle(color:Colors.white70,height:1.4)),
       ]))),
