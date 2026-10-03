@@ -8,8 +8,8 @@ class OwnerSubscriptionPage extends StatefulWidget {
 }
 class _OwnerSubscriptionPageState extends State<OwnerSubscriptionPage>{
   static const gold=Color(0xFFD7A84B);
-  static const pixCopyPaste=String.fromEnvironment('PIX_COPY_PASTE');
-  static const pixKey=String.fromEnvironment('PIX_KEY');
+  static const pixCopyPaste='00020126580014BR.GOV.BCB.PIX0136f0d56560-9a6d-4453-958e-b5d9d9f9da545204000053039865802BR5921JONATHAS CORREIA LIMA6010VILA VELHA62070503***63043274';
+  static const pixKey='f0d56560-9a6d-4453-958e-b5d9d9f9da54';
   bool loading=true; Map<String,dynamic>? sub,plan; String? error;
   @override void initState(){super.initState();load();}
   Future<void> load()async{
@@ -37,16 +37,10 @@ class _OwnerSubscriptionPageState extends State<OwnerSubscriptionPage>{
       const SizedBox(height:16),
       Card(child:Padding(padding:const EdgeInsets.all(18),child:Column(children:[
         const Align(alignment:Alignment.centerLeft,child:Text('PAGAR / RENOVAR VIA PIX',style:TextStyle(color:gold,fontWeight:FontWeight.w900,letterSpacing:1.2))),const SizedBox(height:16),
-        if(pixCopyPaste.isNotEmpty)...[
-          Container(color:Colors.white,padding:const EdgeInsets.all(12),child:QrImageView(data:pixCopyPaste,size:210)),
-          const SizedBox(height:14),const Text('Escaneie o QR Code no aplicativo do seu banco.',textAlign:TextAlign.center),
-          if(pixKey.isNotEmpty)...[const SizedBox(height:12),SelectableText('Chave Pix: $pixKey',textAlign:TextAlign.center,style:const TextStyle(fontWeight:FontWeight.w700))],
-          const SizedBox(height:14),const Text('Após pagar, aguarde a confirmação manual do Agenda Hub. A assinatura será renovada quando o pagamento for confirmado.',textAlign:TextAlign.center,style:TextStyle(color:Colors.white70,height:1.4)),
-        ] else ...[
-          const Icon(Icons.pix,size:52,color:gold),const SizedBox(height:12),
-          const Text('Pix ainda não configurado pelo Agenda Hub.',style:TextStyle(fontWeight:FontWeight.w800)),const SizedBox(height:8),
-          const Text('A cobrança não é feita dentro do aplicativo. Quando os dados Pix forem configurados, o QR Code aparecerá aqui.',textAlign:TextAlign.center,style:TextStyle(color:Colors.white70,height:1.4)),
-        ]
+        Container(color:Colors.white,padding:const EdgeInsets.all(12),child:QrImageView(data:pixCopyPaste,size:210)),
+        const SizedBox(height:14),const Text('Escaneie o QR Code no aplicativo do seu banco.',textAlign:TextAlign.center),
+        const SizedBox(height:12),SelectableText('Chave Pix: $pixKey',textAlign:TextAlign.center,style:const TextStyle(fontWeight:FontWeight.w700)),
+        const SizedBox(height:14),const Text('Após pagar, aguarde a confirmação manual do Agenda Hub. A assinatura será renovada quando o pagamento for confirmado.',textAlign:TextAlign.center,style:TextStyle(color:Colors.white70,height:1.4)),
       ]))),
     ]
   ])));
