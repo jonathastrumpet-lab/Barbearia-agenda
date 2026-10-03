@@ -10,6 +10,7 @@ import 'schedule_settings_page.dart';
 import 'services_page.dart';
 import 'team_page.dart';
 import 'platform_admin_page.dart';
+import 'owner_subscription_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,6 +43,7 @@ class _HomePageState extends State<HomePage>{
       if(admin)_HomeActionCard(icon:Icons.schedule_rounded,title:'Horários',subtitle:'Configure funcionamento e equipe',onTap:()=>_open(context,const ScheduleSettingsPage())),
       if(admin)_HomeActionCard(icon:Icons.groups_2_rounded,title:'Profissionais',subtitle:'Equipe e fotos dos profissionais',onTap:()=>_open(context,const TeamPage())),
       if(admin)_HomeActionCard(icon:Icons.design_services_rounded,title:'Serviços',subtitle:'Nome, valor, duração e disponibilidade',onTap:()=>_open(context,const ServicesPage())),
+      if(admin)_HomeActionCard(icon:Icons.pix,title:'Minha assinatura',subtitle:'Plano, vencimento e pagamento via Pix',onTap:()=>_open(context,const OwnerSubscriptionPage())),
     ];
     return Scaffold(body:SafeArea(child:SingleChildScrollView(padding:const EdgeInsets.fromLTRB(20,12,20,28),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
       _topBar(admin),const SizedBox(height:16),_cloudStatusCard(admin),const SizedBox(height:18),_hero(context,admin),const SizedBox(height:28),

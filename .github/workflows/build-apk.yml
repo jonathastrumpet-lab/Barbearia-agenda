@@ -4,10 +4,13 @@ name: Build Android APK
 
 'on':
   push:
-    branches: [main, build/agenda-hub-163-targeted-fixes, build/agenda-hub-164-item7-only]
+    branches: [main, build/agenda-hub-163-targeted-fixes, build/agenda-hub-164-item7-only, feature/owner-manual-pix-build164]
   pull_request:
     branches: [main]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build-apk:
@@ -63,3 +66,13 @@ jobs:
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish direct APK release
+        if: github.ref == 'refs/heads/feature/owner-manual-pix-build164'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: agenda-hub-build-199
+          name: Agenda Hub Build 199
+          body: APK de teste da Build 199 — correção isolada dos horários passados na data atual.
+          files: build/app/outputs/flutter-apk/app-release.apk
+          make_latest: false
