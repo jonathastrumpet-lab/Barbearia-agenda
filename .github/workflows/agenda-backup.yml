@@ -67,6 +67,9 @@ jobs:
           remote_size="$(rclone size "$remote$filename" --json | python3 -c 'import json,sys; print(json.load(sys.stdin)["bytes"])')"
           local_size="$(stat -c '%s' backup/agenda.dump.enc)"
           test "$remote_size" = "$local_size" || { echo "Falha na verificacao do upload"; exit 1; }
+          rclone copyto "$remote$filename" backup/roundtrip.dump.enc --retries 3
+          cmp backup/agenda.dump.enc backup/roundtrip.dump.enc
+          rm -f backup/roundtrip.dump.enc
           # Nao excluir nada se upload ou verificacao falhar.
           # Ordenacao por nome numerico de run_id (preserva o atual e anterior).
           mapfile -t old < <(rclone lsf "$remote" --files-only | grep -E '^agenda-[0-9]+-[0-9]+\.dump\.enc$' | sort -t- -k2,2nr -k3,3nr | tail -n +3)
