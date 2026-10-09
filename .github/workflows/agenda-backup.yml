@@ -1,34 +1,38 @@
-name: Agenda Hub - backup criptografado (rascunho)
-# Este workflow está em uma branch de revisão. Não entra em produção sem validação.
+name: Agenda Hub - backup criptografado para Drive (preparacao)
+# Branch de revisao: nao roda diariamente ate ser aprovado na branch principal.
 on:
   workflow_dispatch:
   schedule:
-    - cron: '15 6 * * *' # 03:15 horario de Brasilia (UTC-3)
+    - cron: '15 6 * * *' # 03:15 em Brasilia, sem horario de verao
 
 permissions:
   contents: read
 
+concurrency:
+  group: agenda-backup
+  cancel-in-progress: false
+
 jobs:
   backup:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
-      - name: Validar segredos obrigatorios
+      - name: Verificar credenciais
         env:
           DB_URL: ${{ secrets.AGENDA_BACKUP_DATABASE_URL }}
           PASSPHRASE: ${{ secrets.AGENDA_BACKUP_PASSPHRASE }}
+          RCLONE_CONFIG_B64: ${{ secrets.AGENDA_BACKUP_RCLONE_CONFIG_B64 }}
         run: |
+          set -euo pipefail
           test -n "$DB_URL" || { echo "Falta AGENDA_BACKUP_DATABASE_URL"; exit 1; }
-          test -n "$PASSPHRASE" || { echo "Falta AGENDA_BACKUP_PASSPHRASE"; exit 1; }
-          test "${#PASSPHRASE}" -ge 24 || { echo "Senha de criptografia insuficiente"; exit 1; }
-      - name: Instalar PostgreSQL 17
+          test "${#PASSPHRASE}" -ge 24 || { echo "Falta senha de criptografia forte"; exit 1; }
+          test -n "$RCLONE_CONFIG_B64" || { echo "Falta AGENDA_BACKUP_RCLONE_CONFIG_B64"; exit 1; }
+      - name: Instalar clientes PostgreSQL e rclone
         run: |
+          set -euo pipefail
           sudo apt-get update -qq
-          sudo apt-get install -y -qq postgresql-client-17 || true
-          if ! command -v pg_dump >/dev/null; then
-            sudo apt-get install -y -qq postgresql-client
-          fi
-      - name: Exportar schemas auth e public e criptografar
+          sudo apt-get install -y -qq postgresql-client rclone
+      - name: Gerar e validar backup criptografado
         env:
           DB_URL: ${{ secrets.AGENDA_BACKUP_DATABASE_URL }}
           PASSPHRASE: ${{ secrets.AGENDA_BACKUP_PASSPHRASE }}
@@ -37,19 +41,36 @@ jobs:
           set -euo pipefail
           umask 077
           mkdir -p backup
-          export PGCONNECT_TIMEOUT=15
           pg_dump --dbname="$DB_URL" --format=custom --no-owner --no-acl --schema=auth --schema=public --file=backup/agenda.dump
           test -s backup/agenda.dump
           pg_restore --list backup/agenda.dump >/dev/null
           openssl enc -aes-256-cbc -pbkdf2 -salt -iter 200000 -in backup/agenda.dump -out backup/agenda.dump.enc -pass env:PASSPHRASE
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in backup/agenda.dump.enc -out backup/verify.dump -pass env:PASSPHRASE
+          cmp backup/agenda.dump backup/verify.dump
+          rm -f backup/agenda.dump backup/verify.dump
           sha256sum backup/agenda.dump.enc > backup/agenda.dump.enc.sha256
-          rm -f backup/agenda.dump
-      - name: Guardar artefato criptografado por 30 dias
-        uses: actions/upload-artifact@v4
-        with:
-          name: agenda-backup-${{ github.run_id }}
-          path: |
-            backup/agenda.dump.enc
-            backup/agenda.dump.enc.sha256
-          retention-days: 30
-          if-no-files-found: error
+      - name: Enviar ao Drive e manter duas copias validas
+        env:
+          RCLONE_CONFIG_B64: ${{ secrets.AGENDA_BACKUP_RCLONE_CONFIG_B64 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p "$HOME/.config/rclone"
+          printf '%s' "$RCLONE_CONFIG_B64" | base64 --decode > "$HOME/.config/rclone/rclone.conf"
+          # Configurar remote chamado 'agenda_drive' com root_folder_id apontando
+          # para a pasta Agenda Hub - Backups (nao a raiz do Drive).
+          remote="agenda_drive:"
+          filename="agenda-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.dump.enc"
+          rclone copyto backup/agenda.dump.enc "$remote$filename" --retries 3
+          rclone copyto backup/agenda.dump.enc.sha256 "$remote$filename.sha256" --retries 3
+          remote_size="$(rclone size "$remote$filename" --json | python3 -c 'import json,sys; print(json.load(sys.stdin)["bytes"])')"
+          local_size="$(stat -c '%s' backup/agenda.dump.enc)"
+          test "$remote_size" = "$local_size" || { echo "Falha na verificacao do upload"; exit 1; }
+          # Nao excluir nada se upload ou verificacao falhar.
+          # Ordenacao por nome numerico de run_id (preserva o atual e anterior).
+          mapfile -t old < <(rclone lsf "$remote" --files-only | grep -E '^agenda-[0-9]+-[0-9]+\.dump\.enc$' | sort -t- -k2,2nr -k3,3nr | tail -n +3)
+          for item in "${old[@]}"; do
+            rclone deletefile "$remote$item"
+            rclone deletefile "$remote$item.sha256" || true
+          done
