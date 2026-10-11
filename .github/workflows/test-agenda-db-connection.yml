@@ -1,0 +1,35 @@
+name: Teste de conexão do banco Agenda Hub
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-database-connection:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Instalar cliente PostgreSQL
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+      - name: Validar conexão sem alterar dados
+        env:
+          DATABASE_URL: ${{ secrets.AGENDA_BACKUP_DATABASE_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::Segredo AGENDA_BACKUP_DATABASE_URL ausente."
+            exit 1
+          fi
+          if [[ "$DATABASE_URL" == *'[YOUR-PASSWORD]'* ]]; then
+            echo "::error::A senha ainda é o marcador [YOUR-PASSWORD]."
+            exit 1
+          fi
+          if PGCONNECT_TIMEOUT=15 psql "$DATABASE_URL" -X -q -t -A -v ON_ERROR_STOP=1 -c 'SELECT 1' >/dev/null 2>&1; then
+            echo "CONEXÃO APROVADA: credencial válida e banco acessível."
+          else
+            echo "::error::CONEXÃO FALHOU: confira senha, URI, pooler e rede."
+            exit 1
+          fi
