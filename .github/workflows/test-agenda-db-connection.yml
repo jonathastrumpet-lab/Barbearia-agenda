@@ -13,23 +13,43 @@ jobs:
     steps:
       - name: Instalar cliente PostgreSQL
         run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
-      - name: Validar conexão sem alterar dados
+      - name: Diagnosticar conexão sem alterar dados
         env:
           DATABASE_URL: ${{ secrets.AGENDA_BACKUP_DATABASE_URL }}
         shell: bash
         run: |
           set -euo pipefail
           if [ -z "$DATABASE_URL" ]; then
-            echo "::error::Segredo AGENDA_BACKUP_DATABASE_URL ausente."
+            echo "::error::SEGREDO AUSENTE: configure AGENDA_BACKUP_DATABASE_URL."
             exit 1
           fi
           if [[ "$DATABASE_URL" == *'[YOUR-PASSWORD]'* ]]; then
-            echo "::error::A senha ainda é o marcador [YOUR-PASSWORD]."
+            echo "::error::SENHA NÃO SUBSTITUÍDA: a URI ainda contém [YOUR-PASSWORD]."
             exit 1
           fi
-          if PGCONNECT_TIMEOUT=15 psql "$DATABASE_URL" -X -q -t -A -v ON_ERROR_STOP=1 -c 'SELECT 1' >/dev/null 2>&1; then
+          # Do not log the URI, username, host, password or raw psql stderr.
+          error_file="$(mktemp)"
+          trap 'rm -f "$error_file"' EXIT
+          if PGCONNECT_TIMEOUT=15 psql "$DATABASE_URL" -X -q -t -A -v ON_ERROR_STOP=1 -c 'SELECT 1' >/dev/null 2>"$error_file"; then
             echo "CONEXÃO APROVADA: credencial válida e banco acessível."
-          else
-            echo "::error::CONEXÃO FALHOU: confira senha, URI, pooler e rede."
-            exit 1
+            exit 0
           fi
+          # Classify locally; never print raw errors because they may contain connection data.
+          if grep -Eiq 'password authentication failed|invalid password|password authentication' "$error_file"; then
+            echo "::error::AUTENTICAÇÃO: senha ou usuário não aceito pelo PostgreSQL."
+          elif grep -Eiq 'Tenant or user not found|tenant.*not found|user.*not found' "$error_file"; then
+            echo "::error::POOLER: usuário/projeto não reconhecido; confira o método Session pooler e a URI."
+          elif grep -Eiq 'could not translate host name|Name or service not known|nodename nor servname' "$error_file"; then
+            echo "::error::DNS: endereço do servidor não foi encontrado."
+          elif grep -Eiq 'connection refused|timeout expired|timed out|Network is unreachable|No route to host' "$error_file"; then
+            echo "::error::REDE: servidor/porta inacessível ou conexão expirou."
+          elif grep -Eiq 'invalid URI|invalid percent-encoded token|missing.*host|invalid connection option|invalid integer value' "$error_file"; then
+            echo "::error::FORMATO: URI inválida; verifique caracteres especiais codificados, inclusive @ como %40 na senha."
+          elif grep -Eiq 'certificate verify failed|SSL error|server does not support SSL' "$error_file"; then
+            echo "::error::SSL: falha na configuração de conexão segura."
+          elif grep -Eiq 'database .* does not exist' "$error_file"; then
+            echo "::error::BANCO: nome do banco não encontrado."
+          else
+            echo "::error::FALHA NÃO CLASSIFICADA: verifique senha, URI, pooler e conectividade."
+          fi
+          exit 1
