@@ -1,0 +1,15 @@
+name: Verificar preparacao de backup Agenda Hub
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verificar segredo sem revelar valor
+        env:
+          DB_URL: ${{ secrets.AGENDA_BACKUP_DATABASE_URL }}
+        run: |
+          if [ -z "$DB_URL" ]; then echo "::error::Segredo de conexao ausente"; exit 1; fi
+          echo "Segredo de conexao presente. Nenhum dado alterado."
