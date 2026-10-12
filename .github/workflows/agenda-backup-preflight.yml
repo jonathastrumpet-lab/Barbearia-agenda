@@ -1,0 +1,21 @@
+name: Agenda Hub - backup criptografado (preparacao)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verificar configuracao sem divulgar segredos
+        env:
+          DB_URL: ${{ secrets.AGENDA_BACKUP_DATABASE_URL }}
+          DRIVE_AUTH: ${{ secrets.AGENDA_DRIVE_SERVICE_ACCOUNT_JSON }}
+          ENCRYPTION_KEY: ${{ secrets.AGENDA_BACKUP_ENCRYPTION_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "$DB_URL" ]; then echo "::error::Falta AGENDA_BACKUP_DATABASE_URL"; exit 1; fi
+          if [ -z "$DRIVE_AUTH" ]; then echo "::error::Falta autorizacao do Google Drive"; exit 1; fi
+          if [ -z "$ENCRYPTION_KEY" ] || [ "${#ENCRYPTION_KEY}" -lt 32 ]; then echo "::error::Falta chave forte de criptografia"; exit 1; fi
+          echo "Configuracao basica presente; nenhum backup foi executado e nenhum dado foi alterado."
