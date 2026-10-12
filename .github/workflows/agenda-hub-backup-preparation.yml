@@ -5,6 +5,7 @@ on:
     - cron: '0 6 * * *'
 permissions:
   contents: read
+  id-token: write
 jobs:
   backup:
     runs-on: ubuntu-latest
@@ -75,3 +76,41 @@ jobs:
           path: secure-output/*.enc
           retention-days: 7
           if-no-files-found: error
+
+      - name: Autenticar no Google Cloud sem chave privada
+        id: google_auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/887784398222/locations/global/workloadIdentityPools/agenda-hub-github/providers/github
+          service_account: agenda-hub-backup@agenda-hub-backup.iam.gserviceaccount.com
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/drive.file
+      - name: Enviar backup criptografado ao Google Drive
+        shell: bash
+        env:
+          GOOGLE_ACCESS_TOKEN: ${{ steps.google_auth.outputs.access_token }}
+          FOLDER_ID: 18MxCp3f52drMtmcZkC8ocnHnlCkYJA2m
+        run: |
+          set -euo pipefail
+          file="$(find secure-output -maxdepth 1 -type f -name '*.enc' -print -quit)"
+          test -n "$file" && test -s "$file"
+          filename="$(basename "$file")"
+          metadata="$(printf '{"name":"%s","parents":["%s"]}' "$filename" "$FOLDER_ID")"
+          response="$(mktemp)"
+          trap 'rm -f "$response"' EXIT
+          code="$(curl --silent --show-error --output "$response" --write-out '%{http_code}' --request POST \
+            --header "Authorization: Bearer $GOOGLE_ACCESS_TOKEN" \
+            --form "metadata=$metadata;type=application/json" \
+            --form "file=@$file;type=application/octet-stream" \
+            'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,size,parents')"
+          if [ "$code" != "200" ]; then
+            echo "::error::Falha ao enviar backup ao Drive (HTTP $code). Backup temporario no GitHub preservado."
+            exit 1
+          fi
+          python3 - "$response" "$filename" "$FOLDER_ID" <<'PY'
+          import json,sys,os
+          data=json.load(open(sys.argv[1]))
+          if data.get("name")!=sys.argv[2] or sys.argv[3] not in data.get("parents",[]) or int(data.get("size",0))<1:
+              raise SystemExit("Upload nao confirmado")
+          print("Backup criptografado enviado e confirmado no Google Drive.")
+          PY
