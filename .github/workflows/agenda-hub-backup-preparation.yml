@@ -28,7 +28,26 @@ jobs:
           umask 077
           trap 'rm -f backup.sql backup.sql.gz backup.sql.gz.tmp backup.sql.gz.enc' EXIT
           export PGCONNECT_TIMEOUT=20
-          pg_dump --dbname="$DATABASE_URL" --no-owner --no-acl --format=plain --schema=public --file=backup.sql 2>/dev/null
+          error_file="$(mktemp)"
+          trap 'rm -f backup.sql backup.sql.gz backup.sql.gz.tmp backup.sql.gz.enc "$error_file"' EXIT
+          if ! pg_dump --dbname="$DATABASE_URL" --no-owner --no-acl --format=plain --schema=public --file=backup.sql 2>"$error_file"; then
+            if grep -Eiq 'server version:|server version mismatch|aborting because of server version mismatch' "$error_file"; then
+              echo "::error::VERSAO: cliente pg_dump mais antigo que o servidor. Atualize o pg_dump."
+            elif grep -Eiq 'password authentication failed|invalid password' "$error_file"; then
+              echo "::error::AUTENTICACAO: usuario ou senha nao aceitos."
+            elif grep -Eiq 'could not translate host name|Name or service not known' "$error_file"; then
+              echo "::error::DNS: endereco do banco nao encontrado."
+            elif grep -Eiq 'connection refused|timeout expired|timed out|Network is unreachable|No route to host' "$error_file"; then
+              echo "::error::REDE: conexao ao banco indisponivel."
+            elif grep -Eiq 'permission denied|must be owner|insufficient privilege' "$error_file"; then
+              echo "::error::PERMISSAO: usuario sem acesso para exportar algum objeto."
+            elif grep -Eiq 'no matching schemas|schema.*does not exist' "$error_file"; then
+              echo "::error::SCHEMA: public nao encontrado."
+            else
+              echo "::error::PG_DUMP: falha de exportacao nao classificada; nenhum detalhe sensivel foi exibido."
+            fi
+            exit 1
+          fi
           test -s backup.sql
           gzip -9 backup.sql
           mv backup.sql.gz backup.sql.gz.tmp
