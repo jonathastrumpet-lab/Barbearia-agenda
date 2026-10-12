@@ -26,9 +26,13 @@ jobs:
         run: |
           set -euo pipefail
           umask 077
-          trap 'rm -f backup.sql.gz backup.sql.gz.enc' EXIT
+          trap 'rm -f backup.sql backup.sql.gz backup.sql.gz.tmp backup.sql.gz.enc' EXIT
           export PGCONNECT_TIMEOUT=20
-          pg_dump --dbname="$DATABASE_URL" --no-owner --no-acl --format=plain --schema=public 2>/dev/null | gzip -9 > backup.sql.gz
+          pg_dump --dbname="$DATABASE_URL" --no-owner --no-acl --format=plain --schema=public --file=backup.sql 2>/dev/null
+          test -s backup.sql
+          gzip -9 backup.sql
+          mv backup.sql.gz backup.sql.gz.tmp
+          mv backup.sql.gz.tmp backup.sql.gz
           test -s backup.sql.gz
           export BACKUP_KEY
           openssl enc -aes-256-cbc -pbkdf2 -salt -iter 200000 -in backup.sql.gz -out backup.sql.gz.enc -pass env:BACKUP_KEY
