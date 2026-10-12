@@ -16,8 +16,15 @@ jobs:
           test -n "$DB" || { echo "::error::Falta AGENDA_BACKUP_DATABASE_URL"; exit 1; }
           test -n "$KEY" || { echo "::error::Falta AGENDA_BACKUP_ENCRYPTION_KEY"; exit 1; }
           test "${#KEY}" -ge 32 || { echo "::error::Chave de criptografia deve ter pelo menos 32 caracteres"; exit 1; }
-      - name: Instalar PostgreSQL client
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+      - name: Instalar cliente PostgreSQL 18
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-18
+          /usr/lib/postgresql/18/bin/pg_dump --version
       - name: Exportar banco e criptografar sem salvar dados em logs
         shell: bash
         env:
@@ -30,7 +37,7 @@ jobs:
           export PGCONNECT_TIMEOUT=20
           error_file="$(mktemp)"
           trap 'rm -f backup.sql backup.sql.gz backup.sql.gz.tmp backup.sql.gz.enc "$error_file"' EXIT
-          if ! pg_dump --dbname="$DATABASE_URL" --no-owner --no-acl --format=plain --schema=public --file=backup.sql 2>"$error_file"; then
+          if ! /usr/lib/postgresql/18/bin/pg_dump --dbname="$DATABASE_URL" --no-owner --no-acl --format=plain --schema=public --file=backup.sql 2>"$error_file"; then
             if grep -Eiq 'server version:|server version mismatch|aborting because of server version mismatch' "$error_file"; then
               echo "::error::VERSAO: cliente pg_dump mais antigo que o servidor. Atualize o pg_dump."
             elif grep -Eiq 'password authentication failed|invalid password' "$error_file"; then
